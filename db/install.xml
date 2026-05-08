@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<XMLDB PATH="mod/bigbluebuttonbn/extension/advgrd/db" VERSION="20260505" COMMENT="Schema for the BBB advanced grading extension."
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="../../../../../lib/xmldb/xmldb.xsd"
+>
+    <TABLES>
+        <TABLE NAME="bbbext_advgrd_config" COMMENT="Per-BBB-instance advanced grading configuration.">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="bigbluebuttonbnid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="gradingmethod" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="none" SEQUENCE="false" COMMENT="One of: none, rubric, guide."/>
+                <FIELD NAME="scoremode" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="composite" SEQUENCE="false" COMMENT="One of: composite, analytic."/>
+                <FIELD NAME="passthroughtogradebook" TYPE="int" LENGTH="1" NOTNULL="true" DEFAULT="1" SEQUENCE="false"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_bigbluebuttonbnid" TYPE="foreign-unique" FIELDS="bigbluebuttonbnid" REFTABLE="bigbluebuttonbn" REFFIELDS="id"/>
+            </KEYS>
+        </TABLE>
+        <TABLE NAME="bbbext_advgrd_metric_map" COMMENT="Maps a rubric or guide criterion to a BBB engagement metric and threshold profile.">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="configid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="criterionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Id from gradingform_rubric_criteria or gradingform_guide_criteria."/>
+                <FIELD NAME="metric" TYPE="char" LENGTH="32" NOTNULL="true" SEQUENCE="false" COMMENT="duration|talks|chats|raisehand|polls|emojis|composite."/>
+                <FIELD NAME="thresholds" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON map of level id (or score) to minimum metric value."/>
+                <FIELD NAME="weight" TYPE="number" LENGTH="6" NOTNULL="true" DEFAULT="1.0" SEQUENCE="false" DECIMALS="3"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_configid" TYPE="foreign" FIELDS="configid" REFTABLE="bbbext_advgrd_config" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="idx_criterion" UNIQUE="false" FIELDS="configid, criterionid"/>
+            </INDEXES>
+        </TABLE>
+        <TABLE NAME="bbbext_advgrd_grade" COMMENT="Per-user evaluation record with frozen evidence snapshot.">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="configid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="gradinginstanceid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="FK to grading_instances.id."/>
+                <FIELD NAME="rawscore" TYPE="number" LENGTH="10" NOTNULL="false" SEQUENCE="false" DECIMALS="5"/>
+                <FIELD NAME="finalscore" TYPE="number" LENGTH="10" NOTNULL="false" SEQUENCE="false" DECIMALS="5"/>
+                <FIELD NAME="evidence" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="JSON snapshot of BBB engagement metrics at grading time."/>
+                <FIELD NAME="graderid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+                <FIELD NAME="timegraded" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_configid" TYPE="foreign" FIELDS="configid" REFTABLE="bbbext_advgrd_config" REFFIELDS="id"/>
+                <KEY NAME="fk_userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="idx_config_user" UNIQUE="true" FIELDS="configid, userid"/>
+            </INDEXES>
+        </TABLE>
+    </TABLES>
+</XMLDB>

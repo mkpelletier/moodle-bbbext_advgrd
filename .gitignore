@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Local AI assistant scratch
+.claude/
+
+# Build / dependency outputs (kept generated for shipping; ignore intermediate caches)
+node_modules/
+.grunt/
+vendor/
+
+# Test outputs
+.phpunit.cache/
+.phpunit.result.cache
+coverage/
+*.log
