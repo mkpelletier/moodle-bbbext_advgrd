@@ -31,7 +31,6 @@ use stdClass;
  * Adds the "Advanced grading" fieldset to the BBB activity edit form.
  */
 class mod_form_addons extends \mod_bigbluebuttonbn\local\extension\mod_form_addons {
-
     /**
      * Add the advanced-grading configuration fieldset.
      */

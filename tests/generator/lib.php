@@ -30,7 +30,6 @@ use bbbext_advgrd\local\metrics;
  * Generator. Accessed via $dg->get_plugin_generator('bbbext_advgrd').
  */
 class bbbext_advgrd_generator extends component_generator_base {
-
     /**
      * Insert (or update) a bbbext_advgrd_config row for a BBB instance.
      *

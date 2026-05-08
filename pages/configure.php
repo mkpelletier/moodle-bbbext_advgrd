@@ -27,10 +27,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$bbbext_advgrd_pathsource = $_SERVER['SCRIPT_FILENAME'] ?? __FILE__;
-$bbbext_advgrd_parts = explode('/', $bbbext_advgrd_pathsource);
-array_splice($bbbext_advgrd_parts, -6);
-require(implode('/', $bbbext_advgrd_parts) . '/config.php');
+// Bootstrap moodle: use SCRIPT_FILENAME instead of __DIR__ so the page works when the plugin
+// source is symlinked from outside the moodle tree (a common dev workflow). String ops only —
+// any '..' path resolution would traverse the dev symlink and miss config.php.
+// phpcs:disable moodle.Files.MoodleInternal.MoodleInternalGlobalState
+$advgrdpathparts = explode('/', $_SERVER['SCRIPT_FILENAME'] ?? __FILE__);
+array_splice($advgrdpathparts, -6);
+require(implode('/', $advgrdpathparts) . '/config.php');
+// phpcs:enable moodle.Files.MoodleInternal.MoodleInternalGlobalState
 require_once($CFG->dirroot . '/grade/grading/lib.php');
 
 use bbbext_advgrd\local\grader;
@@ -65,8 +69,11 @@ if (!$config || $config->gradingmethod === 'none') {
     echo $OUTPUT->heading(get_string('mappings_title', 'bbbext_advgrd'));
     echo $OUTPUT->notification(get_string('configure_no_method', 'bbbext_advgrd'), 'info');
     $editurl = new moodle_url('/course/modedit.php', ['update' => $cm->id, 'return' => 1]);
-    echo html_writer::link($editurl, get_string('configure_open_modedit', 'bbbext_advgrd'),
-        ['class' => 'btn btn-primary']);
+    echo html_writer::link(
+        $editurl,
+        get_string('configure_open_modedit', 'bbbext_advgrd'),
+        ['class' => 'btn btn-primary']
+    );
     echo $OUTPUT->footer();
     return;
 }
@@ -78,11 +85,17 @@ if (!$controller->is_form_defined()) {
     echo $OUTPUT->header();
     echo $OUTPUT->heading(get_string('mappings_title', 'bbbext_advgrd'));
     echo $OUTPUT->notification(get_string('mappings_no_definition', 'bbbext_advgrd'), 'info');
-    echo html_writer::link($templatesurl, get_string('templates_title', 'bbbext_advgrd'),
-        ['class' => 'btn btn-primary mr-2']);
+    echo html_writer::link(
+        $templatesurl,
+        get_string('templates_title', 'bbbext_advgrd'),
+        ['class' => 'btn btn-primary mr-2']
+    );
     $editurl = $manager->get_management_url($pageurl);
-    echo html_writer::link($editurl, get_string('configure_edit_definition', 'bbbext_advgrd'),
-        ['class' => 'btn btn-secondary', 'target' => '_blank']);
+    echo html_writer::link(
+        $editurl,
+        get_string('configure_edit_definition', 'bbbext_advgrd'),
+        ['class' => 'btn btn-secondary', 'target' => '_blank']
+    );
     echo $OUTPUT->footer();
     return;
 }
@@ -108,8 +121,12 @@ if ($action === 'savemappings' && confirm_sesskey()) {
         ];
     }
     grader::save_metric_mappings((int) $config->id, $rows);
-    redirect($pageurl, get_string('configure_mappings_saved', 'bbbext_advgrd'),
-        null, \core\output\notification::NOTIFY_SUCCESS);
+    redirect(
+        $pageurl,
+        get_string('configure_mappings_saved', 'bbbext_advgrd'),
+        null,
+        \core\output\notification::NOTIFY_SUCCESS
+    );
 }
 
 echo $OUTPUT->header();
@@ -161,31 +178,50 @@ foreach ($criteria as $crit) {
     $thresholdsval = $existing ? ($existing->thresholds ?: '') : '';
     $table->data[] = [
         format_string($crit->{$labelfield}),
-        html_writer::select($metricoptions, $namefield('metric'),
-            $existing ? $existing->metric : 'none', false),
-        html_writer::tag('textarea', s($thresholdsval),
+        html_writer::select(
+            $metricoptions,
+            $namefield('metric'),
+            $existing ? $existing->metric : 'none',
+            false
+        ),
+        html_writer::tag(
+            'textarea',
+            s($thresholdsval),
             ['name' => $namefield('thresholds'), 'rows' => 2, 'cols' => 30,
-             'placeholder' => '{"3":4,"2":2,"1":1,"0":0}']),
-        html_writer::empty_tag('input',
+            'placeholder' => '{"3":4,"2":2,"1":1,"0":0}']
+        ),
+        html_writer::empty_tag(
+            'input',
             ['type' => 'number', 'step' => '0.1', 'min' => '0',
              'name' => $namefield('weight'),
              'value' => $existing ? (float) $existing->weight : 1.0,
-             'style' => 'width:5em;']),
+            'style' => 'width:5em;']
+        ),
     ];
 }
 echo html_writer::table($table);
-echo html_writer::tag('div',
-    html_writer::empty_tag('input',
+echo html_writer::tag(
+    'div',
+    html_writer::empty_tag(
+        'input',
         ['type' => 'submit', 'value' => get_string('savemappings', 'bbbext_advgrd'),
-         'class' => 'btn btn-primary']),
-    ['class' => 'mt-3']);
+        'class' => 'btn btn-primary']
+    ),
+    ['class' => 'mt-3']
+);
 echo html_writer::end_tag('form');
 
 echo html_writer::start_tag('div', ['class' => 'mt-4']);
-echo html_writer::link($gradeurl, get_string('configure_open_grading', 'bbbext_advgrd'),
-    ['class' => 'btn btn-link']);
-echo html_writer::link($viewurl, get_string('configure_back_to_activity', 'bbbext_advgrd'),
-    ['class' => 'btn btn-link']);
+echo html_writer::link(
+    $gradeurl,
+    get_string('configure_open_grading', 'bbbext_advgrd'),
+    ['class' => 'btn btn-link']
+);
+echo html_writer::link(
+    $viewurl,
+    get_string('configure_back_to_activity', 'bbbext_advgrd'),
+    ['class' => 'btn btn-link']
+);
 echo html_writer::end_tag('div');
 
 echo $OUTPUT->footer();

@@ -30,7 +30,6 @@ use coding_exception;
  * Lookup helpers around the bundled templates.
  */
 class registry {
-
     /**
      * All registered template classes, in display order. Adding a new template means appending
      * its FQCN here.

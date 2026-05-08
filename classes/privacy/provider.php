@@ -45,9 +45,8 @@ use core_privacy\local\request\writer;
  */
 class provider implements
     \core_privacy\local\metadata\provider,
-    \core_privacy\local\request\plugin\provider,
-    \core_privacy\local\request\core_userlist_provider {
-
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
     /**
      * Describe the per-user data this plugin stores.
      */
@@ -204,8 +203,12 @@ class provider implements
                 continue;
             }
             $DB->delete_records('bbbext_advgrd_grade', ['configid' => $config->id, 'userid' => $userid]);
-            $DB->set_field('bbbext_advgrd_grade', 'graderid', null,
-                ['configid' => $config->id, 'graderid' => $userid]);
+            $DB->set_field(
+                'bbbext_advgrd_grade',
+                'graderid',
+                null,
+                ['configid' => $config->id, 'graderid' => $userid]
+            );
         }
     }
 

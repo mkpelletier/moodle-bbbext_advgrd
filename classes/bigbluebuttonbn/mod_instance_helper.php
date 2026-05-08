@@ -30,7 +30,6 @@ use stdClass;
  * Persists per-instance config rows and cleans up on delete.
  */
 class mod_instance_helper extends \mod_bigbluebuttonbn\local\extension\mod_instance_helper {
-
     /**
      * Insert config row when a new BBB instance is created.
      *
@@ -72,9 +71,9 @@ class mod_instance_helper extends \mod_bigbluebuttonbn\local\extension\mod_insta
         // keyed on (contextid, component='bbbext_advgrd', areaname='participation'); the BBB module deletes the
         // course_module before this hook fires, so the context is gone and core grading cleans up via the
         // contextid foreign key. We only need to clean up our extension-owned tables.
-        $DB->delete_records('bbbext_advgrd_grade',      ['configid' => $config->id]);
+        $DB->delete_records('bbbext_advgrd_grade', ['configid' => $config->id]);
         $DB->delete_records('bbbext_advgrd_metric_map', ['configid' => $config->id]);
-        $DB->delete_records('bbbext_advgrd_config',     ['id'       => $config->id]);
+        $DB->delete_records('bbbext_advgrd_config', ['id'       => $config->id]);
 
         // Tear down any analytic gradebook items we created (itemnumbers 1..3). The BBB module
         // handles itemnumber 0 itself.

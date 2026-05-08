@@ -38,7 +38,6 @@ use stdClass;
  * lazily so callers don't have to know about Moodle's plumbing.
  */
 class grader {
-
     /**
      * Resolve the BBB activity context, course module, and config row from a BBB instance id.
      *
@@ -211,8 +210,13 @@ class grader {
      *                            on the rubric/guide's native scale (0..maxscore).
      * @param int|null   $gradinginstanceid grading_instances.id from the form submission.
      */
-    public static function record_grade(int $bbbid, int $userid, int $graderid,
-                                        ?float $rawscore, ?int $gradinginstanceid): void {
+    public static function record_grade(
+        int $bbbid,
+        int $userid,
+        int $graderid,
+        ?float $rawscore,
+        ?int $gradinginstanceid
+    ): void {
         global $DB, $CFG;
 
         $info = self::bootstrap($bbbid);
@@ -252,9 +256,11 @@ class grader {
 
         if (!empty($info['config']->passthroughtogradebook)) {
             self::push_to_gradebook($info['bbb'], $userid, $finalscore, $graderid);
-            if ($info['config']->scoremode === 'analytic'
+            if (
+                $info['config']->scoremode === 'analytic'
                     && $info['config']->gradingmethod === 'rubric'
-                    && $gradinginstanceid) {
+                    && $gradinginstanceid
+            ) {
                 self::push_analytic_subscores($info['bbb'], $userid, (int) $gradinginstanceid, $graderid);
             }
         }
@@ -268,8 +274,12 @@ class grader {
      * presence (inferred from the criterion label), then multiplied by the activity's grademax.
      * Criteria whose presence cannot be inferred (custom criteria) are skipped.
      */
-    protected static function push_analytic_subscores(stdClass $bbb, int $userid,
-                                                      int $gradinginstanceid, int $graderid): void {
+    protected static function push_analytic_subscores(
+        stdClass $bbb,
+        int $userid,
+        int $gradinginstanceid,
+        int $graderid
+    ): void {
         global $DB, $CFG;
         require_once($CFG->libdir . '/gradelib.php');
 
@@ -372,7 +382,7 @@ class grader {
         if ($rawscore === null) {
             return null;
         }
-        // submit_and_get_grade already returns a value scaled to set_grade_range(),
+        // The submit_and_get_grade() call already returns a value scaled to set_grade_range(),
         // which the caller will set to 0..$maxgrade. So rawscore is already on the gradebook scale.
         // We clamp defensively.
         return max(0.0, min($maxgrade, $rawscore));

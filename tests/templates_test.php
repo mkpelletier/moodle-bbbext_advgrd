@@ -35,6 +35,9 @@ use bbbext_advgrd\local\templates\template;
 use coding_exception;
 
 /**
+ * Unit tests for the rubric/guide template registry and the three bundled templates: registry
+ * lookup, payload shape, metric mapping integrity, and analytic-group prefix round-trip.
+ *
  * @covers \bbbext_advgrd\local\templates\template
  * @covers \bbbext_advgrd\local\templates\registry
  * @covers \bbbext_advgrd\local\templates\coi
@@ -42,7 +45,6 @@ use coding_exception;
  * @covers \bbbext_advgrd\local\templates\inclusive
  */
 final class templates_test extends advanced_testcase {
-
     public function test_registry_exposes_all_three_templates(): void {
         $ids = array_map(fn($c) => $c::id(), registry::all());
         $this->assertContains('coi', $ids);
@@ -63,6 +65,8 @@ final class templates_test extends advanced_testcase {
     }
 
     /**
+     * Each template must expose well-formed, localised metadata strings.
+     *
      * @dataProvider all_templates_provider
      */
     public function test_template_metadata_is_localised(string $tplclass): void {
@@ -76,6 +80,8 @@ final class templates_test extends advanced_testcase {
     }
 
     /**
+     * Each template's rubric payload must have non-empty criteria, levels, and a positive max score.
+     *
      * @dataProvider all_templates_provider
      */
     public function test_rubric_definition_shape(string $tplclass): void {
@@ -98,6 +104,8 @@ final class templates_test extends advanced_testcase {
     }
 
     /**
+     * Marking-guide max scores must mirror the corresponding rubric's top score per criterion.
+     *
      * @dataProvider all_templates_provider
      */
     public function test_guide_definition_max_scores_match_rubric(string $tplclass): void {
@@ -118,17 +126,24 @@ final class templates_test extends advanced_testcase {
     }
 
     /**
+     * Every metric mapping must reference a canonical metric key from the metrics catalogue.
+     *
      * @dataProvider all_templates_provider
      */
     public function test_mappings_use_canonical_metric_keys(string $tplclass): void {
         $valid = array_merge(metrics::metric_keys(), [metrics::METRIC_COMPOSITE]);
         foreach ($tplclass::rubric_definition()['mappings'] as $mapping) {
-            $this->assertContains($mapping['metric'], $valid,
-                "{$tplclass} uses unknown metric '{$mapping['metric']}'");
+            $this->assertContains(
+                $mapping['metric'],
+                $valid,
+                "{$tplclass} uses unknown metric '{$mapping['metric']}'"
+            );
         }
     }
 
     /**
+     * Every metric mapping must reference a criterion that exists in the rubric definition.
+     *
      * @dataProvider all_templates_provider
      */
     public function test_every_mapping_links_to_an_existing_criterion(string $tplclass): void {
@@ -140,6 +155,8 @@ final class templates_test extends advanced_testcase {
     }
 
     /**
+     * Every criterion must carry a group prefix that matches one of the template's analytic groups.
+     *
      * @dataProvider all_templates_provider
      */
     public function test_analytic_groups_are_referenced_by_criteria(string $tplclass): void {
@@ -156,20 +173,26 @@ final class templates_test extends advanced_testcase {
                     break;
                 }
             }
-            $this->assertTrue($matched,
-                "{$tplclass} criterion '{$crit['description']}' has no matching group prefix");
+            $this->assertTrue(
+                $matched,
+                "{$tplclass} criterion '{$crit['description']}' has no matching group prefix"
+            );
         }
     }
 
     /**
+     * infer_group_from_label() must round-trip every criterion description back to a known group.
+     *
      * @dataProvider all_templates_provider
      */
     public function test_infer_group_round_trip(string $tplclass): void {
         $criteria = $tplclass::rubric_definition()['definition']['rubric']['criteria'];
         foreach ($criteria as $crit) {
             $key = $tplclass::infer_group_from_label($crit['description']);
-            $this->assertNotNull($key,
-                "{$tplclass} cannot infer group for its own criterion '{$crit['description']}'");
+            $this->assertNotNull(
+                $key,
+                "{$tplclass} cannot infer group for its own criterion '{$crit['description']}'"
+            );
             $this->assertContains($key, array_keys($tplclass::analytic_groups()));
         }
     }
@@ -206,6 +229,8 @@ final class templates_test extends advanced_testcase {
     }
 
     /**
+     * Data provider yielding every registered template class.
+     *
      * @return array<string, array<int, class-string<template>>>
      */
     public static function all_templates_provider(): array {

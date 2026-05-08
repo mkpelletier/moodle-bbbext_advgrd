@@ -30,10 +30,12 @@ use bbbext_advgrd\local\metrics;
 use mod_bigbluebuttonbn\instance;
 
 /**
+ * Unit tests for the engagement-metrics reader: attendee-payload extraction, accumulation,
+ * composite scoring, level suggestion, and the evidence-vs-logs precedence.
+ *
  * @covers \bbbext_advgrd\local\metrics
  */
 final class metrics_test extends advanced_testcase {
-
     public function test_metric_keys_are_canonical(): void {
         $this->assertSame(
             ['duration', 'talks', 'chats', 'raisehand', 'polls', 'emojis'],
@@ -151,10 +153,16 @@ final class metrics_test extends advanced_testcase {
         /** @var \bbbext_advgrd_generator $gen */
         $gen = $this->getDataGenerator()->get_plugin_generator('bbbext_advgrd');
         // No config row, no evidence — only a log row.
-        $gen->seed_summary_log($bbb->id, $user->id,
-            ['duration' => 900, 'talks' => 60, 'chats' => 4]);
-        $gen->seed_summary_log($bbb->id, $user->id,
-            ['duration' => 600, 'talks' => 20]);
+        $gen->seed_summary_log(
+            $bbb->id,
+            $user->id,
+            ['duration' => 900, 'talks' => 60, 'chats' => 4]
+        );
+        $gen->seed_summary_log(
+            $bbb->id,
+            $user->id,
+            ['duration' => 600, 'talks' => 20]
+        );
 
         $instance = instance::get_from_instanceid($bbb->id);
         $result = metrics::for_user($instance, $user->id);

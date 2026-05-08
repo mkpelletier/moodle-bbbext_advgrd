@@ -22,10 +22,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$bbbext_advgrd_pathsource = $_SERVER['SCRIPT_FILENAME'] ?? __FILE__;
-$bbbext_advgrd_parts = explode('/', $bbbext_advgrd_pathsource);
-array_splice($bbbext_advgrd_parts, -6);
-require(implode('/', $bbbext_advgrd_parts) . '/config.php');
+// Bootstrap moodle: use SCRIPT_FILENAME instead of __DIR__ so the page works when the plugin
+// source is symlinked from outside the moodle tree (a common dev workflow). String ops only —
+// any '..' path resolution would traverse the dev symlink and miss config.php.
+// phpcs:disable moodle.Files.MoodleInternal.MoodleInternalGlobalState
+$advgrdpathparts = explode('/', $_SERVER['SCRIPT_FILENAME'] ?? __FILE__);
+array_splice($advgrdpathparts, -6);
+require(implode('/', $advgrdpathparts) . '/config.php');
+// phpcs:enable moodle.Files.MoodleInternal.MoodleInternalGlobalState
 
 use bbbext_advgrd\local\grader;
 use bbbext_advgrd\local\metrics;
@@ -70,11 +74,20 @@ if (!$controller->is_form_defined()) {
 }
 
 $bbbinstance = instance::get_from_instanceid($bbbid);
-$users = get_enrolled_users($context, 'mod/bigbluebuttonbn:view', 0,
-    'u.id, u.firstname, u.lastname, u.email', 'u.lastname, u.firstname');
+$users = get_enrolled_users(
+    $context,
+    'mod/bigbluebuttonbn:view',
+    0,
+    'u.id, u.firstname, u.lastname, u.email',
+    'u.lastname, u.firstname'
+);
 
-$grades = $DB->get_records_menu('bbbext_advgrd_grade',
-    ['configid' => $config->id], '', 'userid, finalscore');
+$grades = $DB->get_records_menu(
+    'bbbext_advgrd_grade',
+    ['configid' => $config->id],
+    '',
+    'userid, finalscore'
+);
 
 $table = new html_table();
 $table->head = [
@@ -92,8 +105,10 @@ $table->attributes['class'] = 'generaltable';
 
 foreach ($users as $u) {
     $m = metrics::for_user($bbbinstance, (int) $u->id);
-    $gradeurl = new moodle_url('/mod/bigbluebuttonbn/extension/advgrd/pages/grade.php',
-        ['id' => $bbbid, 'userid' => $u->id]);
+    $gradeurl = new moodle_url(
+        '/mod/bigbluebuttonbn/extension/advgrd/pages/grade.php',
+        ['id' => $bbbid, 'userid' => $u->id]
+    );
     $finalscore = $grades[$u->id] ?? null;
     $table->data[] = [
         fullname($u),
@@ -104,8 +119,11 @@ foreach ($users as $u) {
         $m[metrics::METRIC_POLLS],
         $m[metrics::METRIC_EMOJIS],
         $finalscore !== null ? format_float($finalscore, 2) : '—',
-        html_writer::link($gradeurl, get_string('grade_user_action', 'bbbext_advgrd'),
-            ['class' => 'btn btn-sm btn-primary']),
+        html_writer::link(
+            $gradeurl,
+            get_string('grade_user_action', 'bbbext_advgrd'),
+            ['class' => 'btn btn-sm btn-primary']
+        ),
     ];
 }
 

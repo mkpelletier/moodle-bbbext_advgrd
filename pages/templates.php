@@ -22,10 +22,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$bbbext_advgrd_pathsource = $_SERVER['SCRIPT_FILENAME'] ?? __FILE__;
-$bbbext_advgrd_parts = explode('/', $bbbext_advgrd_pathsource);
-array_splice($bbbext_advgrd_parts, -6);
-require(implode('/', $bbbext_advgrd_parts) . '/config.php');
+// Bootstrap moodle: use SCRIPT_FILENAME instead of __DIR__ so the page works when the plugin
+// source is symlinked from outside the moodle tree (a common dev workflow). String ops only —
+// any '..' path resolution would traverse the dev symlink and miss config.php.
+// phpcs:disable moodle.Files.MoodleInternal.MoodleInternalGlobalState
+$advgrdpathparts = explode('/', $_SERVER['SCRIPT_FILENAME'] ?? __FILE__);
+array_splice($advgrdpathparts, -6);
+require(implode('/', $advgrdpathparts) . '/config.php');
+// phpcs:enable moodle.Files.MoodleInternal.MoodleInternalGlobalState
 
 use bbbext_advgrd\local\grader;
 use bbbext_advgrd\local\templates\registry;
@@ -59,8 +63,11 @@ if (!$config || $config->gradingmethod === 'none') {
     echo $OUTPUT->heading(get_string('templates_title', 'bbbext_advgrd'));
     echo $OUTPUT->notification(get_string('configure_no_method', 'bbbext_advgrd'), 'info');
     $editurl = new moodle_url('/course/modedit.php', ['update' => $cm->id, 'return' => 1]);
-    echo html_writer::link($editurl, get_string('configure_open_modedit', 'bbbext_advgrd'),
-        ['class' => 'btn btn-primary']);
+    echo html_writer::link(
+        $editurl,
+        get_string('configure_open_modedit', 'bbbext_advgrd'),
+        ['class' => 'btn btn-primary']
+    );
     echo $OUTPUT->footer();
     return;
 }
@@ -71,14 +78,20 @@ $controller = $manager->get_controller($config->gradingmethod);
 // Handle import action.
 if ($action === 'import' && $templateid !== '' && confirm_sesskey()) {
     if ($controller->is_form_defined()) {
-        redirect($pageurl,
+        redirect(
+            $pageurl,
             get_string('error_definition_exists', 'bbbext_advgrd'),
-            null, \core\output\notification::NOTIFY_ERROR);
+            null,
+            \core\output\notification::NOTIFY_ERROR
+        );
     }
     grader::import_template($bbbid, $templateid);
-    redirect($mappingsurl,
+    redirect(
+        $mappingsurl,
         get_string('templates_imported', 'bbbext_advgrd'),
-        null, \core\output\notification::NOTIFY_SUCCESS);
+        null,
+        \core\output\notification::NOTIFY_SUCCESS
+    );
 }
 
 echo $OUTPUT->header();
@@ -87,8 +100,11 @@ echo $OUTPUT->heading(format_string($bbb->name) . ': ' . get_string('templates_t
 if ($controller->is_form_defined()) {
     echo $OUTPUT->notification(get_string('templates_already_defined', 'bbbext_advgrd'), 'warning');
     $editurl = $manager->get_management_url($pageurl);
-    echo html_writer::link($editurl, get_string('configure_edit_definition', 'bbbext_advgrd'),
-        ['class' => 'btn btn-secondary', 'target' => '_blank']);
+    echo html_writer::link(
+        $editurl,
+        get_string('configure_edit_definition', 'bbbext_advgrd'),
+        ['class' => 'btn btn-secondary', 'target' => '_blank']
+    );
     echo $OUTPUT->footer();
     return;
 }
@@ -110,9 +126,11 @@ foreach (registry::all() as $tplclass) {
     if ($citation !== '') {
         $card .= html_writer::tag('p', $citation, ['class' => 'card-text text-muted small']);
     }
-    $card .= html_writer::link($importurl,
+    $card .= html_writer::link(
+        $importurl,
         get_string('templates_use_button', 'bbbext_advgrd'),
-        ['class' => 'btn btn-primary']);
+        ['class' => 'btn btn-primary']
+    );
     $card .= html_writer::end_tag('div');
     $card .= html_writer::end_tag('div');
     echo html_writer::tag('div', $card, ['class' => 'col-md-4']);
@@ -120,8 +138,11 @@ foreach (registry::all() as $tplclass) {
 echo html_writer::end_tag('div');
 
 echo html_writer::start_tag('div', ['class' => 'mt-3']);
-echo html_writer::link($activityurl, get_string('configure_back_to_activity', 'bbbext_advgrd'),
-    ['class' => 'btn btn-link']);
+echo html_writer::link(
+    $activityurl,
+    get_string('configure_back_to_activity', 'bbbext_advgrd'),
+    ['class' => 'btn btn-link']
+);
 echo html_writer::end_tag('div');
 
 echo $OUTPUT->footer();

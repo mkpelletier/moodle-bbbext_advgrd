@@ -22,10 +22,14 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-$bbbext_advgrd_pathsource = $_SERVER['SCRIPT_FILENAME'] ?? __FILE__;
-$bbbext_advgrd_parts = explode('/', $bbbext_advgrd_pathsource);
-array_splice($bbbext_advgrd_parts, -6);
-require(implode('/', $bbbext_advgrd_parts) . '/config.php');
+// Bootstrap moodle: use SCRIPT_FILENAME instead of __DIR__ so the page works when the plugin
+// source is symlinked from outside the moodle tree (a common dev workflow). String ops only —
+// any '..' path resolution would traverse the dev symlink and miss config.php.
+// phpcs:disable moodle.Files.MoodleInternal.MoodleInternalGlobalState
+$advgrdpathparts = explode('/', $_SERVER['SCRIPT_FILENAME'] ?? __FILE__);
+array_splice($advgrdpathparts, -6);
+require(implode('/', $advgrdpathparts) . '/config.php');
+// phpcs:enable moodle.Files.MoodleInternal.MoodleInternalGlobalState
 
 use bbbext_advgrd\form\grade_form;
 use bbbext_advgrd\local\grader;
@@ -45,8 +49,10 @@ require_login($bbb->course, false, $cm);
 require_capability('bbbext/advgrd:grade', $context);
 
 $listurl = new moodle_url('/mod/bigbluebuttonbn/extension/advgrd/pages/index.php', ['id' => $bbbid]);
-$pageurl = new moodle_url('/mod/bigbluebuttonbn/extension/advgrd/pages/grade.php',
-    ['id' => $bbbid, 'userid' => $userid]);
+$pageurl = new moodle_url(
+    '/mod/bigbluebuttonbn/extension/advgrd/pages/grade.php',
+    ['id' => $bbbid, 'userid' => $userid]
+);
 $PAGE->set_url($pageurl);
 $PAGE->set_context($context);
 $PAGE->set_cm($cm);
@@ -92,11 +98,19 @@ if ($form->is_cancelled()) {
     redirect($listurl);
 } else if ($data = $form->get_data()) {
     $rawscore = $gradinginstance->submit_and_get_grade($data->advancedgrading, $userid);
-    grader::record_grade($bbbid, $userid, (int) $USER->id,
+    grader::record_grade(
+        $bbbid,
+        $userid,
+        (int) $USER->id,
         $rawscore !== false ? (float) $rawscore : null,
-        (int) $gradinginstance->get_id());
-    redirect($listurl, get_string('grade_saved', 'bbbext_advgrd', fullname($user)),
-        null, \core\output\notification::NOTIFY_SUCCESS);
+        (int) $gradinginstance->get_id()
+    );
+    redirect(
+        $listurl,
+        get_string('grade_saved', 'bbbext_advgrd', fullname($user)),
+        null,
+        \core\output\notification::NOTIFY_SUCCESS
+    );
 }
 
 echo $OUTPUT->header();
@@ -115,12 +129,12 @@ $evidencetable = new html_table();
 $evidencetable->head = [get_string('column_metric', 'bbbext_advgrd'), get_string('column_value', 'bbbext_advgrd')];
 $evidencetable->attributes['class'] = 'generaltable';
 $evidencetable->data = [
-    [get_string('metric_duration', 'bbbext_advgrd'),  format_time($usermetrics[metrics::METRIC_DURATION])],
-    [get_string('metric_talks', 'bbbext_advgrd'),     format_time($usermetrics[metrics::METRIC_TALKS])],
-    [get_string('metric_chats', 'bbbext_advgrd'),     $usermetrics[metrics::METRIC_CHATS]],
+    [get_string('metric_duration', 'bbbext_advgrd'), format_time($usermetrics[metrics::METRIC_DURATION])],
+    [get_string('metric_talks', 'bbbext_advgrd'), format_time($usermetrics[metrics::METRIC_TALKS])],
+    [get_string('metric_chats', 'bbbext_advgrd'), $usermetrics[metrics::METRIC_CHATS]],
     [get_string('metric_raisehand', 'bbbext_advgrd'), $usermetrics[metrics::METRIC_RAISEHAND]],
-    [get_string('metric_polls', 'bbbext_advgrd'),     $usermetrics[metrics::METRIC_POLLS]],
-    [get_string('metric_emojis', 'bbbext_advgrd'),    $usermetrics[metrics::METRIC_EMOJIS]],
+    [get_string('metric_polls', 'bbbext_advgrd'), $usermetrics[metrics::METRIC_POLLS]],
+    [get_string('metric_emojis', 'bbbext_advgrd'), $usermetrics[metrics::METRIC_EMOJIS]],
 ];
 echo html_writer::table($evidencetable);
 
@@ -136,8 +150,11 @@ if (!empty($suggestions)) {
         $list[] = $name . ' — ' . get_string('suggested_level_score', 'bbbext_advgrd', (string) $score);
     }
     echo html_writer::alist($list);
-    echo html_writer::tag('p', get_string('suggested_levels_help', 'bbbext_advgrd'),
-        ['class' => 'text-muted small']);
+    echo html_writer::tag(
+        'p',
+        get_string('suggested_levels_help', 'bbbext_advgrd'),
+        ['class' => 'text-muted small']
+    );
 
     // For rubric grading, resolve (criterionid, score) → (criterionid, levelid) and pass to JS
     // so the suggested cell can be highlighted directly inside the rubric form.

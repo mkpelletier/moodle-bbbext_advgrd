@@ -39,14 +39,19 @@ use mod_bigbluebuttonbn\logger;
  *   emojis     — count of emoji reactions
  */
 class metrics {
-
-    /** Canonical metric keys. */
+    /** @var string Total attendance time (seconds). */
     public const METRIC_DURATION  = 'duration';
+    /** @var string Total mic talk time (seconds). */
     public const METRIC_TALKS     = 'talks';
+    /** @var string Public chat message count. */
     public const METRIC_CHATS     = 'chats';
+    /** @var string Raise-hand event count. */
     public const METRIC_RAISEHAND = 'raisehand';
+    /** @var string Poll-vote count. */
     public const METRIC_POLLS     = 'polls';
+    /** @var string Emoji reaction count. */
     public const METRIC_EMOJIS    = 'emojis';
+    /** @var string Derived 0..1 composite engagement score. */
     public const METRIC_COMPOSITE = 'composite';
 
     /**

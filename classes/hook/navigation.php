@@ -32,7 +32,6 @@ use navigation_node;
  * Hook handlers.
  */
 class navigation {
-
     /**
      * Inject our advanced-grading nodes into $PAGE->settingsnav under 'modulesettings'.
      *

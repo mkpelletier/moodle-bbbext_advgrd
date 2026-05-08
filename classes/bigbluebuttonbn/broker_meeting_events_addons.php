@@ -34,7 +34,6 @@ use bbbext_advgrd\local\metrics;
  * the exact body BBB sent — see meeting::meeting_events() and process_meeting_events().
  */
 class broker_meeting_events_addons extends \mod_bigbluebuttonbn\local\extension\broker_meeting_events_addons {
-
     /**
      * Parse attendees, accumulate their metrics into bbbext_advgrd_grade.evidence,
      * preserving any existing evidence by summing across multiple sessions.

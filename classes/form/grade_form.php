@@ -35,7 +35,6 @@ use moodleform;
  * validation to the underlying gradingform_*_instance.
  */
 class grade_form extends moodleform {
-
     /**
      * Form definition.
      *

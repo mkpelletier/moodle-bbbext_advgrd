@@ -40,8 +40,7 @@ use core_grades\local\gradeitem\itemnumber_mapping;
  * registered here because they are dynamic (their count and labels depend on which template
  * the teacher imported); core grading doesn't need to enumerate them statically.
  */
-class gradeitems implements itemnumber_mapping, advancedgrading_mapping {
-
+class gradeitems implements advancedgrading_mapping, itemnumber_mapping {
     /**
      * itemname[itemnumber] mapping. Mirrors the area name used in self-registered grading_areas
      * rows (component=bbbext_advgrd, areaname=participation).

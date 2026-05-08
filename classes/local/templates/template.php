@@ -40,7 +40,6 @@ namespace bbbext_advgrd\local\templates;
  * so they're easy to maintain.
  */
 abstract class template {
-
     /**
      * Stable string id (alphanumeric + underscore). Used in URLs and DB keys, never localised.
      */
@@ -121,7 +120,7 @@ abstract class template {
                     'format' => FORMAT_HTML,
                     'itemid' => 0,
                 ],
-                'status'      => 20, // gradingform_controller::DEFINITION_STATUS_READY.
+                'status'      => 20, // Equivalent to gradingform_controller::DEFINITION_STATUS_READY.
                 'rubric'      => [
                     'criteria' => $criteria,
                     'options'  => [

@@ -36,12 +36,14 @@ use bbbext_advgrd\local\metrics;
  * driving our own database tables directly via the data generator.
  */
 class behat_bbbext_advgrd extends behat_base {
-
     /**
-     * @Given /^the BigBlueButton activity "(?P<bbb_string>(?:[^"]|\\")*)" has advanced grading method "(?P<method_string>(?:[^"]|\\")*)"$/
+     * Configure a BBB activity's bbbext_advgrd grading method (rubric / guide / none).
+     *
+     * @Given the BigBlueButton activity :bbb has advanced grading method :method
+     * @param string $bbb     Activity name (its instance.name).
+     * @param string $method  One of rubric|guide|none.
      */
     public function bbb_has_grading_method(string $bbb, string $method): void {
-        global $DB;
         $bbbid = $this->resolve_bbb_id($bbb);
         /** @var bbbext_advgrd_generator $gen */
         $gen = behat_util::get_data_generator()->get_plugin_generator('bbbext_advgrd');
@@ -49,7 +51,10 @@ class behat_bbbext_advgrd extends behat_base {
     }
 
     /**
-     * @Given /^the Community of Inquiry rubric template has been imported into "(?P<bbb_string>(?:[^"]|\\")*)"$/
+     * Import the Community of Inquiry rubric template into a BBB activity.
+     *
+     * @Given the Community of Inquiry rubric template has been imported into :bbb
+     * @param string $bbb Activity name (its instance.name).
      */
     public function coi_template_imported(string $bbb): void {
         $bbbid = $this->resolve_bbb_id($bbb);
@@ -60,10 +65,15 @@ class behat_bbbext_advgrd extends behat_base {
     }
 
     /**
-     * @Given /^the user "(?P<user_string>(?:[^"]|\\")*)" has BigBlueButton engagement evidence in "(?P<bbb_string>(?:[^"]|\\")*)":$/
+     * Seed a frozen evidence snapshot for a user in a BBB activity.
      *
-     * Table columns: metric, value
-     * Allowed metrics: duration, talks, chats, raisehand, polls, emojis (any subset).
+     * Table columns: metric, value. Allowed metrics: duration, talks, chats, raisehand, polls,
+     * emojis (any subset).
+     *
+     * @Given the user :username has BigBlueButton engagement evidence in :bbb:
+     * @param string    $username User's username.
+     * @param string    $bbb      Activity name.
+     * @param TableNode $table    Metric/value rows.
      */
     public function user_has_evidence(string $username, string $bbb, TableNode $table): void {
         global $DB;
@@ -81,11 +91,15 @@ class behat_bbbext_advgrd extends behat_base {
     }
 
     /**
-     * @Then /^I should see the engagement evidence panel$/
+     * Assert the engagement-evidence panel is visible on the current page.
+     *
+     * @Then I should see the engagement evidence panel
      */
     public function evidence_panel_visible(): void {
-        $this->execute('behat_general::assert_page_contains_text',
-            [get_string('evidence_heading', 'bbbext_advgrd')]);
+        $this->execute(
+            'behat_general::assert_page_contains_text',
+            [get_string('evidence_heading', 'bbbext_advgrd')]
+        );
     }
 
     /**

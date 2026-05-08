@@ -35,27 +35,56 @@ use bbbext_advgrd\local\metrics;
  * to a class.
  */
 class inclusive extends template {
-
+    /**
+     * Stable id for the registry / picker URL.
+     *
+     * @return string
+     */
     public static function id(): string {
         return 'inclusive';
     }
 
+    /**
+     * Localised display name shown in the templates picker.
+     *
+     * @return string
+     */
     public static function name(): string {
         return get_string('tpl_inclusive_name', 'bbbext_advgrd');
     }
 
+    /**
+     * Localised description shown alongside the picker option.
+     *
+     * @return string
+     */
     public static function description(): string {
         return get_string('tpl_inclusive_description', 'bbbext_advgrd');
     }
 
+    /**
+     * Bibliographic citation shown under the picker description.
+     *
+     * @return string
+     */
     public static function citation(): string {
         return get_string('tpl_inclusive_citation', 'bbbext_advgrd');
     }
 
+    /**
+     * Localised name of the rubric/guide definition created on import.
+     *
+     * @return string
+     */
     public static function definition_name(): string {
         return get_string('tpl_inclusive_definition_name', 'bbbext_advgrd');
     }
 
+    /**
+     * Criteria blueprint for this template — see {@see template::blueprint()}.
+     *
+     * @return array
+     */
     protected static function blueprint(): array {
         $s = function (string $key): string {
             return get_string($key, 'bbbext_advgrd');

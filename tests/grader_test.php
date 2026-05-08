@@ -30,10 +30,12 @@ use bbbext_advgrd\local\grader;
 use moodle_exception;
 
 /**
+ * Unit tests for the grader orchestrator: bootstrap, manager wiring, template import,
+ * metric-mapping persistence, level suggestion, grade recording, and analytic-mode pass-through.
+ *
  * @covers \bbbext_advgrd\local\grader
  */
 final class grader_test extends advanced_testcase {
-
     public function test_bootstrap_returns_full_context(): void {
         $this->resetAfterTest();
         [$bbb] = $this->seed_bbb_with_user();
@@ -71,8 +73,10 @@ final class grader_test extends advanced_testcase {
         $manager = grader::get_grading_manager($bbb->id);
         $this->assertSame('rubric', $manager->get_active_method());
 
-        $row = $DB->get_record('grading_areas',
-            ['component' => 'bbbext_advgrd', 'areaname' => 'participation']);
+        $row = $DB->get_record(
+            'grading_areas',
+            ['component' => 'bbbext_advgrd', 'areaname' => 'participation']
+        );
         $this->assertNotEmpty($row);
         $this->assertSame('rubric', $row->activemethod);
     }
@@ -92,10 +96,14 @@ final class grader_test extends advanced_testcase {
         $controller = $manager->get_controller('rubric');
         $this->assertTrue($controller->is_form_defined());
         // The revised CoI template ships with four criteria (two cognitive, two social).
-        $this->assertSame(4, $DB->count_records('gradingform_rubric_criteria',
-            ['definitionid' => $controller->get_definition()->id]));
-        $this->assertGreaterThan(0, $DB->count_records('bbbext_advgrd_metric_map',
-            ['configid' => $config->id]));
+        $this->assertSame(4, $DB->count_records(
+            'gradingform_rubric_criteria',
+            ['definitionid' => $controller->get_definition()->id]
+        ));
+        $this->assertGreaterThan(0, $DB->count_records(
+            'bbbext_advgrd_metric_map',
+            ['configid' => $config->id]
+        ));
     }
 
     public function test_import_template_refuses_overwrite(): void {
@@ -190,8 +198,10 @@ final class grader_test extends advanced_testcase {
 
         grader::record_grade($bbb->id, $user->id, $admin->id, 87.5, null);
 
-        $row = $DB->get_record('bbbext_advgrd_grade',
-            ['configid' => $config->id, 'userid' => $user->id]);
+        $row = $DB->get_record(
+            'bbbext_advgrd_grade',
+            ['configid' => $config->id, 'userid' => $user->id]
+        );
         $this->assertNotEmpty($row);
         $this->assertEquals(87.5, (float) $row->finalscore);
         $this->assertSame((int) $admin->id, (int) $row->graderid);
@@ -213,8 +223,10 @@ final class grader_test extends advanced_testcase {
 
         grader::record_grade($bbb->id, $user->id, get_admin()->id, 250.0, null);
 
-        $row = $DB->get_record('bbbext_advgrd_grade',
-            ['userid' => $user->id]);
+        $row = $DB->get_record(
+            'bbbext_advgrd_grade',
+            ['userid' => $user->id]
+        );
         $this->assertEquals(100.0, (float) $row->finalscore);
     }
 
@@ -235,14 +247,18 @@ final class grader_test extends advanced_testcase {
         $controller = $manager->get_controller('rubric');
         $controller->set_grade_range(make_grades_menu(100), true);
         $instance = $controller->get_or_create_instance(null, $admin->id, $user->id);
-        $crits = $DB->get_records('gradingform_rubric_criteria',
-            ['definitionid' => $controller->get_definition()->id]);
+        $crits = $DB->get_records(
+            'gradingform_rubric_criteria',
+            ['definitionid' => $controller->get_definition()->id]
+        );
         $rubricdata = ['criteria' => []];
         foreach ($crits as $c) {
             $top = $DB->get_record_sql(
                 "SELECT id FROM {gradingform_rubric_levels}
                   WHERE criterionid = :cid ORDER BY score DESC",
-                ['cid' => $c->id], IGNORE_MULTIPLE);
+                ['cid' => $c->id],
+                IGNORE_MULTIPLE
+            );
             $rubricdata['criteria'][$c->id] = [
                 'levelid' => (int) $top->id, 'remark' => '', 'remarkformat' => FORMAT_HTML,
             ];
