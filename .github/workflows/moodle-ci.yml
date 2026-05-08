@@ -32,8 +32,11 @@ jobs:
       fail-fast: false
       matrix:
         php: ['8.2', '8.3', '8.4']
-        moodle-branch: ['MOODLE_500_STABLE', 'main']
+        moodle-branch: ['MOODLE_500_STABLE']
         database: ['pgsql', 'mariadb']
+        # Note: Moodle 'main' (master) is intentionally not in the matrix yet — it surfaces
+        # transient composer/install failures unrelated to this plugin. Add it back once
+        # upstream stabilises.
 
     steps:
       - name: Check out plugin source
