@@ -106,6 +106,9 @@ class mod_instance_helper extends \mod_bigbluebuttonbn\local\extension\mod_insta
 
     /**
      * Insert a new config row or update an existing one for this BBB instance.
+     *
+     * @param int $instanceid
+     * @param stdClass $formdata
      */
     protected function upsert_config(int $instanceid, stdClass $formdata): void {
         global $DB;

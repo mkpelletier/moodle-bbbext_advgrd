@@ -41,6 +41,7 @@ class grader {
     /**
      * Resolve the BBB activity context, course module, and config row from a BBB instance id.
      *
+     * @param int $bbbid
      * @return array{bbb:stdClass, cm:stdClass, context:context_module, config:stdClass|null}
      */
     public static function bootstrap(int $bbbid): array {
@@ -55,6 +56,9 @@ class grader {
 
     /**
      * Build a grading_manager for the BBB participation area, ensuring the activemethod matches config.
+     *
+     * @param int $bbbid
+     * @return grading_manager
      */
     public static function get_grading_manager(int $bbbid): grading_manager {
         global $CFG;
@@ -143,7 +147,7 @@ class grader {
      * Persist a teacher-edited set of metric mappings, replacing any prior rows for this config.
      *
      * @param int $configid bbbext_advgrd_config.id.
-     * @param array<int, array{criterionid:int, metric:string, thresholds:array, weight:float}> $rows
+     * @param array $rows Each row is ['criterionid' => int, 'metric' => string, 'thresholds' => array, 'weight' => float].
      */
     public static function save_metric_mappings(int $configid, array $rows): void {
         global $DB;
@@ -166,6 +170,8 @@ class grader {
     /**
      * Suggest a level (rubric) or score (guide) for each criterion based on the user's metrics.
      *
+     * @param int $bbbid
+     * @param int $userid
      * @return array<int, int|float|null> map of criterionid => suggested score (rubric: a level score,
      *                                    guide: the suggested mark, null if no mapping or no threshold matched).
      */
@@ -273,6 +279,11 @@ class grader {
      * Each sub-score is sum-of-earned ÷ sum-of-max across the criteria belonging to that
      * presence (inferred from the criterion label), then multiplied by the activity's grademax.
      * Criteria whose presence cannot be inferred (custom criteria) are skipped.
+     *
+     * @param stdClass $bbb
+     * @param int $userid
+     * @param int $gradinginstanceid
+     * @param int $graderid
      */
     protected static function push_analytic_subscores(
         stdClass $bbb,
@@ -359,6 +370,7 @@ class grader {
      * template's analytic groupings. First match wins. Returns [null, null] if no template
      * recognises the prefix.
      *
+     * @param string $label
      * @return array{0: ?string, 1: ?string}
      */
     protected static function resolve_group_for_label(string $label): array {
@@ -377,6 +389,12 @@ class grader {
      *
      * Rubrics report on the rubric's own min..max range; guides report sum-of-criteria over
      * sum-of-maxscores. We rescale either to 0..$maxgrade.
+     *
+     * @param float|null $rawscore
+     * @param int $bbbid
+     * @param string $method
+     * @param float $maxgrade
+     * @return float|null
      */
     protected static function scale_to_gradebook(?float $rawscore, int $bbbid, string $method, float $maxgrade): ?float {
         if ($rawscore === null) {
@@ -390,6 +408,11 @@ class grader {
 
     /**
      * Push the final score to the BBB gradebook item via the standard grade API.
+     *
+     * @param stdClass $bbb
+     * @param int $userid
+     * @param float|null $score
+     * @param int $graderid
      */
     protected static function push_to_gradebook(stdClass $bbb, int $userid, ?float $score, int $graderid): void {
         global $CFG;

@@ -49,6 +49,9 @@ class provider implements
     \core_privacy\local\request\plugin\provider {
     /**
      * Describe the per-user data this plugin stores.
+     *
+     * @param collection $collection
+     * @return collection
      */
     public static function get_metadata(collection $collection): collection {
         $collection->add_database_table(
@@ -69,6 +72,9 @@ class provider implements
     /**
      * Find every BBB activity context that holds a grade row for this user (as graded user
      * or as the rater).
+     *
+     * @param int $userid
+     * @return contextlist
      */
     public static function get_contexts_for_userid(int $userid): contextlist {
         $contextlist = new contextlist();
@@ -90,6 +96,8 @@ class provider implements
 
     /**
      * Find every user with a grade row in the given context.
+     *
+     * @param userlist $userlist
      */
     public static function get_users_in_context(userlist $userlist): void {
         $context = $userlist->get_context();
@@ -121,6 +129,8 @@ class provider implements
 
     /**
      * Export this user's grade rows in each approved context.
+     *
+     * @param approved_contextlist $contextlist
      */
     public static function export_user_data(approved_contextlist $contextlist): void {
         global $DB;
@@ -164,6 +174,8 @@ class provider implements
 
     /**
      * Delete all grade rows in a given context.
+     *
+     * @param context $context
      */
     public static function delete_data_for_all_users_in_context(context $context): void {
         global $DB;
@@ -185,6 +197,8 @@ class provider implements
      * Delete the user's grade rows across the approved context list. We delete rows where the
      * user was the graded subject; rows where they were merely the rater are anonymised by
      * nulling graderid (so the gradee's record is preserved as required by audit policy).
+     *
+     * @param approved_contextlist $contextlist
      */
     public static function delete_data_for_user(approved_contextlist $contextlist): void {
         global $DB;
@@ -214,6 +228,8 @@ class provider implements
 
     /**
      * Bulk delete for the given userlist in a single context.
+     *
+     * @param approved_userlist $userlist
      */
     public static function delete_data_for_users(approved_userlist $userlist): void {
         global $DB;

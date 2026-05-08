@@ -211,6 +211,9 @@ abstract class template {
      * Infer the group key of a criterion by matching its label against this template's
      * registered groups. Returns null when no group prefix matches (e.g., teacher renamed the
      * criterion in the standard rubric editor).
+     *
+     * @param string $label
+     * @return string|null
      */
     public static function infer_group_from_label(string $label): ?string {
         foreach (static::analytic_groups() as $key => $glabel) {
@@ -223,6 +226,9 @@ abstract class template {
 
     /**
      * Render a "{Group} — {Criterion}" label, or just "{Criterion}" if the entry has no group.
+     *
+     * @param array $entry
+     * @return string
      */
     protected static function label(array $entry): string {
         if (!empty($entry['grouplabel'])) {
@@ -233,6 +239,9 @@ abstract class template {
 
     /**
      * Build rubric levels keyed by NEWIDn placeholders.
+     *
+     * @param array $levels
+     * @return array
      */
     protected static function rubric_levels(array $levels): array {
         $out = [];
@@ -247,6 +256,9 @@ abstract class template {
 
     /**
      * Render a level summary used for the marking-guide description fields.
+     *
+     * @param array $levels
+     * @return string
      */
     protected static function level_summary(array $levels): string {
         $lines = [];

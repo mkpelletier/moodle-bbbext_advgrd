@@ -149,6 +149,8 @@ class mod_form_addons extends \mod_bigbluebuttonbn\local\extension\mod_form_addo
 
     /**
      * No-op: storage is handled by mod_instance_helper to keep concerns separated.
+     *
+     * @param stdClass $data
      */
     public function data_postprocessing(stdClass &$data): void {
     }

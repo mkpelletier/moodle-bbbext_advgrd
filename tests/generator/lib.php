@@ -62,6 +62,9 @@ class bbbext_advgrd_generator extends component_generator_base {
 
     /**
      * Import a starter template (default: 'coi') into the BBB activity's grading area.
+     *
+     * @param int $bbbid
+     * @param string $templateid
      */
     public function import_template(int $bbbid, string $templateid = 'coi'): void {
         grader::import_template($bbbid, $templateid);
@@ -101,6 +104,10 @@ class bbbext_advgrd_generator extends component_generator_base {
     /**
      * Insert a SUMMARY log row directly into bigbluebuttonbn_logs, mimicking what the BBB
      * end-of-meeting webhook would produce. Useful for testing metrics::aggregate_from_logs.
+     *
+     * @param int $bbbid
+     * @param int $userid
+     * @param array $session metric => value.
      */
     public function seed_summary_log(int $bbbid, int $userid, array $session): void {
         global $DB;

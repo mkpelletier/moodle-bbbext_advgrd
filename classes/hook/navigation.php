@@ -43,6 +43,8 @@ class navigation {
      *
      * The secondary navigation later reads these from settingsnav via load_remaining_nodes()
      * in load_module_navigation(), so we only have to put them there.
+     *
+     * @param before_http_headers $hook
      */
     public static function extend_settingsnav(before_http_headers $hook): void {
         global $PAGE, $DB, $CFG;

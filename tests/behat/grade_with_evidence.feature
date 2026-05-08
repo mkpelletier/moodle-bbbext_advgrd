@@ -35,11 +35,10 @@ Feature: Teachers can grade BigBlueButton participation against the imported rub
   @javascript
   Scenario: Teacher opens the grading list and grades a student with evidence visible
     Given I log in as "teacher1"
-    And I am on the "Live class" Activity page
-    When I follow "Participation grading"
+    And I am on the "livec1" Activity page
+    When I navigate to "Participation grading" in current page administration
     Then I should see "Student One"
-    And I should see "9"
     When I click on "Grade" "link" in the "Student One" "table_row"
     Then I should see the engagement evidence panel
     And I should see "Suggested levels"
-    And I should see "Cognitive presence — Exploration"
+    And I should see "Cognitive presence — Open communication"

@@ -104,6 +104,9 @@ class behat_bbbext_advgrd extends behat_base {
 
     /**
      * Resolve a BBB activity by name (its instance.name) to its bigbluebuttonbn.id.
+     *
+     * @param string $name
+     * @return int
      */
     protected function resolve_bbb_id(string $name): int {
         global $DB;
