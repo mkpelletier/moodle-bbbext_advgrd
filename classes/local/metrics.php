@@ -224,9 +224,9 @@ class metrics {
      * Thresholds are an ordered list of [levelkey => minvalue] pairs, evaluated from highest
      * minvalue downwards; the first match wins. Returns null if no level matches.
      *
-     * @param int|float $value The student's metric value.
-     * @param array<string|int, int|float> $thresholds Map of level key => minimum metric value.
-     * @return string|int|null The matching level key, or null.
+     * @param mixed $value The student's metric value (int or float).
+     * @param array $thresholds Map of level key => minimum metric value.
+     * @return mixed The matching level key (string or int), or null.
      */
     public static function suggest_level($value, array $thresholds) {
         if (empty($thresholds)) {

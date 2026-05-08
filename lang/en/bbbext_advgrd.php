@@ -170,7 +170,6 @@ $string['setting_defaultweight_talks_desc'] = 'Default contribution weight appli
 $string['setting_enabled_desc'] = 'Enable the advanced grading extension for BigBlueButton activities.';
 $string['setting_shipcoitemplates'] = 'Ship starter templates';
 $string['setting_shipcoitemplates_desc'] = 'When enabled, teachers can import any of the bundled starter templates (Community of Inquiry; Quantity + Quality; Inclusive multi-modal) from the activity\'s secondary navigation.';
-$string['suggested_badge'] = 'Suggested';
 $string['suggested_level_score'] = 'suggested score: {$a}';
 $string['suggested_levels_heading'] = 'Suggested levels';
 $string['suggested_levels_help'] = 'Suggestions are derived from the metric thresholds you configured. They are advisory only — your judgement on the rubric overrides them.';

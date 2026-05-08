@@ -155,27 +155,6 @@ if (!empty($suggestions)) {
         get_string('suggested_levels_help', 'bbbext_advgrd'),
         ['class' => 'text-muted small']
     );
-
-    // For rubric grading, resolve (criterionid, score) → (criterionid, levelid) and pass to JS
-    // so the suggested cell can be highlighted directly inside the rubric form.
-    if ($config->gradingmethod === 'rubric') {
-        $pairs = [];
-        foreach ($suggestions as $cid => $score) {
-            $level = $DB->get_record_sql(
-                "SELECT id FROM {gradingform_rubric_levels}
-                  WHERE criterionid = :cid AND score = :score
-               ORDER BY id ASC",
-                ['cid' => $cid, 'score' => (float) $score],
-                IGNORE_MULTIPLE
-            );
-            if ($level) {
-                $pairs[] = ['criterionid' => (int) $cid, 'levelid' => (int) $level->id];
-            }
-        }
-        if (!empty($pairs)) {
-            $PAGE->requires->js_call_amd('bbbext_advgrd/suggestions', 'init', [$pairs]);
-        }
-    }
 }
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');

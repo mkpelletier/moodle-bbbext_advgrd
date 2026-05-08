@@ -67,7 +67,7 @@ final class templates_test extends advanced_testcase {
     /**
      * Each template must expose well-formed, localised metadata strings.
      *
-     * @param class-string $tplclass
+     * @param string $tplclass
      * @dataProvider all_templates_provider
      */
     public function test_template_metadata_is_localised(string $tplclass): void {
@@ -83,7 +83,7 @@ final class templates_test extends advanced_testcase {
     /**
      * Each template's rubric payload must have non-empty criteria, levels, and a positive max score.
      *
-     * @param class-string $tplclass
+     * @param string $tplclass
      * @dataProvider all_templates_provider
      */
     public function test_rubric_definition_shape(string $tplclass): void {
@@ -108,7 +108,7 @@ final class templates_test extends advanced_testcase {
     /**
      * Marking-guide max scores must mirror the corresponding rubric's top score per criterion.
      *
-     * @param class-string $tplclass
+     * @param string $tplclass
      * @dataProvider all_templates_provider
      */
     public function test_guide_definition_max_scores_match_rubric(string $tplclass): void {
@@ -131,7 +131,7 @@ final class templates_test extends advanced_testcase {
     /**
      * Every metric mapping must reference a canonical metric key from the metrics catalogue.
      *
-     * @param class-string $tplclass
+     * @param string $tplclass
      * @dataProvider all_templates_provider
      */
     public function test_mappings_use_canonical_metric_keys(string $tplclass): void {
@@ -148,7 +148,7 @@ final class templates_test extends advanced_testcase {
     /**
      * Every metric mapping must reference a criterion that exists in the rubric definition.
      *
-     * @param class-string $tplclass
+     * @param string $tplclass
      * @dataProvider all_templates_provider
      */
     public function test_every_mapping_links_to_an_existing_criterion(string $tplclass): void {
@@ -162,7 +162,7 @@ final class templates_test extends advanced_testcase {
     /**
      * Every criterion must carry a group prefix that matches one of the template's analytic groups.
      *
-     * @param class-string $tplclass
+     * @param string $tplclass
      * @dataProvider all_templates_provider
      */
     public function test_analytic_groups_are_referenced_by_criteria(string $tplclass): void {
@@ -189,7 +189,7 @@ final class templates_test extends advanced_testcase {
     /**
      * infer_group_from_label() must round-trip every criterion description back to a known group.
      *
-     * @param class-string $tplclass
+     * @param string $tplclass
      * @dataProvider all_templates_provider
      */
     public function test_infer_group_round_trip(string $tplclass): void {
@@ -238,7 +238,7 @@ final class templates_test extends advanced_testcase {
     /**
      * Data provider yielding every registered template class.
      *
-     * @return array<string, array<int, class-string<template>>>
+     * @return array
      */
     public static function all_templates_provider(): array {
         return [
