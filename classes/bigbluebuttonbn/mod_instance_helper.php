@@ -96,12 +96,20 @@ class mod_instance_helper extends \mod_bigbluebuttonbn\local\extension\mod_insta
     }
 
     /**
-     * Tables to include in instance backup/restore.
+     * Tables that BBB should join 1:1 against the bigbluebuttonbn row when retrieving instance
+     * info or producing backups.
+     *
+     * Only `bbbext_advgrd_config` is listed: it's a 1:1 join on bigbluebuttonbnid. The
+     * `bbbext_advgrd_metric_map` and `bbbext_advgrd_grade` tables are 1:N (many criteria per
+     * activity, many users per activity), so listing them here would make BBB's
+     * `get_instance_info_retriever()` SQL return duplicate rows ("Duplicate value found in
+     * column cid" / coding exception). Their backup/restore is handled separately at a
+     * future point via the plugin's own backup steps.
      *
      * @return string[]
      */
     public function get_join_tables(): array {
-        return ['bbbext_advgrd_config', 'bbbext_advgrd_metric_map', 'bbbext_advgrd_grade'];
+        return ['bbbext_advgrd_config'];
     }
 
     /**

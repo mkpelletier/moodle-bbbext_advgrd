@@ -94,6 +94,7 @@ class bbbext_advgrd_generator extends component_generator_base {
         }
 
         $id = $DB->insert_record('bbbext_advgrd_grade', (object) [
+            'bigbluebuttonbnid' => $bbbid,
             'configid' => $config->id,
             'userid'   => $userid,
             'evidence' => json_encode($payload),

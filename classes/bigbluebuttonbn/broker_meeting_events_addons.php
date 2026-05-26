@@ -73,6 +73,7 @@ class broker_meeting_events_addons extends \mod_bigbluebuttonbn\local\extension\
                 $DB->update_record('bbbext_advgrd_grade', $existing);
             } else {
                 $DB->insert_record('bbbext_advgrd_grade', (object) [
+                    'bigbluebuttonbnid' => $instanceid,
                     'configid'   => $config->id,
                     'userid'     => $userid,
                     'evidence'   => json_encode($session),

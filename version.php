@@ -24,11 +24,11 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->version      = 2026050800;
+$plugin->version      = 2026052601;
 $plugin->requires     = 2025041400;
 $plugin->component    = 'bbbext_advgrd';
 $plugin->maturity     = MATURITY_BETA;
-$plugin->release      = '0.1.0';
+$plugin->release      = '0.1.1';
 $plugin->supports     = [500, 502];
 $plugin->dependencies = [
     'mod_bigbluebuttonbn' => 2025041400,

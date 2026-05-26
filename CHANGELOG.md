@@ -2,6 +2,30 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.1.1] — 2026-05-26
+
+### Fixed
+
+- `mod_bigbluebuttonbn\extension::get_join_tables()` builds a single SQL that
+  LEFT-JOINs the BBB instance row against every additional table declared by
+  sub-plugins. Listing our 1:N tables (`bbbext_advgrd_metric_map`,
+  `bbbext_advgrd_grade`) there made BBB's `get_instance_info_retriever()`
+  return duplicate course-module rows ("Did you remember to make the first
+  column something unique … Duplicate value found in column 'cid'"). Only
+  the 1:1 `bbbext_advgrd_config` table now stays in `get_join_tables()`.
+- Earlier the same code path emitted
+  "get_instance_additional_tables: bbbext_advgrd_metric_map should have a
+  column named bigbluebuttonid" because the additional-tables filter requires
+  a `bigbluebuttonbnid` column. We add that column as a denormalised FK on
+  both `metric_map` and `grade` so that scoped queries (privacy export,
+  future backup steps) can resolve rows to a BBB instance directly without
+  joining through `config`. An `upgrade.php` step backfills the column on
+  existing installs.
+- Every insert site that writes to `metric_map` or `grade` now populates the
+  new column (`grader::import_template`, `grader::save_metric_mappings`,
+  `grader::record_grade`, `broker_meeting_events_addons::process_action`,
+  generator's `seed_evidence`).
+
 ## [0.1.0] — 2026-05-08
 
 Initial public beta.

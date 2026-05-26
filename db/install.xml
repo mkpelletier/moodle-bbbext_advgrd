@@ -22,6 +22,7 @@
         <TABLE NAME="bbbext_advgrd_metric_map" COMMENT="Maps a rubric or guide criterion to a BBB engagement metric and threshold profile.">
             <FIELDS>
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="bigbluebuttonbnid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Denormalised FK to bigbluebuttonbn.id (required by mod_bigbluebuttonbn\extension for backup/restore)."/>
                 <FIELD NAME="configid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="criterionid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Id from gradingform_rubric_criteria or gradingform_guide_criteria."/>
                 <FIELD NAME="metric" TYPE="char" LENGTH="32" NOTNULL="true" SEQUENCE="false" COMMENT="duration|talks|chats|raisehand|polls|emojis|composite."/>
@@ -30,6 +31,7 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_bigbluebuttonbnid" TYPE="foreign" FIELDS="bigbluebuttonbnid" REFTABLE="bigbluebuttonbn" REFFIELDS="id"/>
                 <KEY NAME="fk_configid" TYPE="foreign" FIELDS="configid" REFTABLE="bbbext_advgrd_config" REFFIELDS="id"/>
             </KEYS>
             <INDEXES>
@@ -39,6 +41,7 @@
         <TABLE NAME="bbbext_advgrd_grade" COMMENT="Per-user evaluation record with frozen evidence snapshot.">
             <FIELDS>
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="bigbluebuttonbnid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Denormalised FK to bigbluebuttonbn.id (required by mod_bigbluebuttonbn\extension for backup/restore)."/>
                 <FIELD NAME="configid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="gradinginstanceid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="FK to grading_instances.id."/>
@@ -50,6 +53,7 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_bigbluebuttonbnid" TYPE="foreign" FIELDS="bigbluebuttonbnid" REFTABLE="bigbluebuttonbn" REFFIELDS="id"/>
                 <KEY NAME="fk_configid" TYPE="foreign" FIELDS="configid" REFTABLE="bbbext_advgrd_config" REFFIELDS="id"/>
                 <KEY NAME="fk_userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
             </KEYS>

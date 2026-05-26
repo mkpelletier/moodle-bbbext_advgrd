@@ -134,6 +134,7 @@ class grader {
                 continue; // Don't overwrite teacher customisations on re-import.
             }
             $DB->insert_record('bbbext_advgrd_metric_map', (object) [
+                'bigbluebuttonbnid' => $config->bigbluebuttonbnid,
                 'configid'    => $config->id,
                 'criterionid' => $criterionid,
                 'metric'      => $mapping['metric'],
@@ -152,12 +153,19 @@ class grader {
     public static function save_metric_mappings(int $configid, array $rows): void {
         global $DB;
 
+        $bbbid = (int) $DB->get_field(
+            'bbbext_advgrd_config',
+            'bigbluebuttonbnid',
+            ['id' => $configid],
+            MUST_EXIST
+        );
         $DB->delete_records('bbbext_advgrd_metric_map', ['configid' => $configid]);
         foreach ($rows as $row) {
             if (empty($row['metric']) || $row['metric'] === 'none') {
                 continue;
             }
             $DB->insert_record('bbbext_advgrd_metric_map', (object) [
+                'bigbluebuttonbnid' => $bbbid,
                 'configid'    => $configid,
                 'criterionid' => (int) $row['criterionid'],
                 'metric'      => $row['metric'],
@@ -243,6 +251,7 @@ class grader {
         ]);
 
         $row = (object) [
+            'bigbluebuttonbnid' => $bbbid,
             'configid'          => $info['config']->id,
             'userid'            => $userid,
             'gradinginstanceid' => $gradinginstanceid,
