@@ -285,9 +285,9 @@ final class annotations_test extends advanced_testcase {
         $dg->enrol_user($grader->id, $course->id, 'editingteacher');
         $cm = get_coursemodule_from_instance('bigbluebuttonbn', (int) $bbb->id, 0, false, MUST_EXIST);
         $context = context_module::instance($cm->id);
-        // file_get_unused_draft_itemid() scopes the draft area by $USER->id and rejects the
-        // guest user with "No guests here!". Tests call create()/update() which use draft
-        // areas, so they need an authenticated user - default to the grader.
+        // Authenticate as the grader: file_get_unused_draft_itemid() scopes the draft area
+        // by $USER->id and rejects the guest user with "No guests here!". Tests call
+        // create()/update() which exercise that path.
         $this->setUser($grader);
         return [$bbb, $target, $grader, $context];
     }
