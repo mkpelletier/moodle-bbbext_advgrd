@@ -20,3 +20,6 @@ vendor/
 .phpunit.result.cache
 coverage/
 *.log
+
+# Moodle-generated PHPUnit config (admin/tool/phpunit/cli/util.php output)
+/phpunit.xml

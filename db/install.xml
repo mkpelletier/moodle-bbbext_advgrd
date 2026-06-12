@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/bigbluebuttonbn/extension/advgrd/db" VERSION="20260505" COMMENT="Schema for the BBB advanced grading extension."
+<XMLDB PATH="mod/bigbluebuttonbn/extension/advgrd/db" VERSION="20260612" COMMENT="Schema for the BBB advanced grading extension."
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xsi:noNamespaceSchemaLocation="../../../../../lib/xmldb/xmldb.xsd"
 >
@@ -59,6 +59,48 @@
             </KEYS>
             <INDEXES>
                 <INDEX NAME="idx_config_user" UNIQUE="true" FIELDS="configid, userid"/>
+            </INDEXES>
+        </TABLE>
+        <TABLE NAME="bbbext_advgrd_annotation" COMMENT="Timestamped feedback comments anchored to a BBB recording position, scoped per addressed student.">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="bigbluebuttonbnid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Denormalised FK to bigbluebuttonbn.id for scoped queries."/>
+                <FIELD NAME="recordingid" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false" COMMENT="BBB recording id string."/>
+                <FIELD NAME="targetuserid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Student the comment is addressed to."/>
+                <FIELD NAME="graderid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Author (teacher); nullable for anonymised privacy deletions."/>
+                <FIELD NAME="timestampms" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Anchor position in the recording, in milliseconds."/>
+                <FIELD NAME="body" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="Rich-text HTML body; may contain embedded audio/image via the comment filearea."/>
+                <FIELD NAME="bodyformat" TYPE="int" LENGTH="2" NOTNULL="true" DEFAULT="1" SEQUENCE="false" COMMENT="Moodle text format constant for body (FORMAT_HTML=1)."/>
+                <FIELD NAME="commenttype" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="general" SEQUENCE="false" COMMENT="general|praise|correction|suggestion|question."/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_bigbluebuttonbnid" TYPE="foreign" FIELDS="bigbluebuttonbnid" REFTABLE="bigbluebuttonbn" REFFIELDS="id"/>
+                <KEY NAME="fk_targetuserid" TYPE="foreign" FIELDS="targetuserid" REFTABLE="user" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="idx_recording_target" UNIQUE="false" FIELDS="recordingid, targetuserid"/>
+            </INDEXES>
+        </TABLE>
+        <TABLE NAME="bbbext_advgrd_rec_probe" COMMENT="Cached server-side probe of a BBB recording for a directly playable media URL.">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="bigbluebuttonbnid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="recordingid" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="mediaurl" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Directly playable media URL when probestatus=ok."/>
+                <FIELD NAME="probestatus" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="failed" SEQUENCE="false" COMMENT="ok|iframe|failed."/>
+                <FIELD NAME="durationms" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="iframeurl" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="BBB-hosted iframe URL when probestatus=iframe."/>
+                <FIELD NAME="timeprobed" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_bigbluebuttonbnid" TYPE="foreign" FIELDS="bigbluebuttonbnid" REFTABLE="bigbluebuttonbn" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="idx_recordingid" UNIQUE="true" FIELDS="recordingid"/>
             </INDEXES>
         </TABLE>
     </TABLES>

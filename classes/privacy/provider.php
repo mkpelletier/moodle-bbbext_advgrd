@@ -36,12 +36,14 @@ use core_privacy\local\request\writer;
 /**
  * Declares the per-user data this plugin stores and how to export, delete, and discover it.
  *
- * The plugin owns three tables:
+ * The plugin owns five tables:
  *   - bbbext_advgrd_config       — per-activity setup, no per-user data.
  *   - bbbext_advgrd_metric_map   — teacher-defined criterion/metric mappings, no per-user data.
  *   - bbbext_advgrd_grade        — per-user grade + frozen engagement evidence (PII).
+ *   - bbbext_advgrd_annotation   — per-(recording, student) teacher feedback comments (PII).
+ *   - bbbext_advgrd_rec_probe    — cached server-side recording probes, no per-user data.
  *
- * Only bbbext_advgrd_grade contains user data.
+ * Plus the bbbext_advgrd/comment filearea (audio/image attached to annotation bodies).
  */
 class provider implements
     \core_privacy\local\metadata\provider,
@@ -65,6 +67,24 @@ class provider implements
                 'timegraded' => 'privacy:metadata:bbbext_advgrd_grade:timegraded',
             ],
             'privacy:metadata:bbbext_advgrd_grade'
+        );
+        $collection->add_database_table(
+            'bbbext_advgrd_annotation',
+            [
+                'recordingid'  => 'privacy:metadata:bbbext_advgrd_annotation:recordingid',
+                'targetuserid' => 'privacy:metadata:bbbext_advgrd_annotation:targetuserid',
+                'graderid'     => 'privacy:metadata:bbbext_advgrd_annotation:graderid',
+                'body'         => 'privacy:metadata:bbbext_advgrd_annotation:body',
+                'commenttype'  => 'privacy:metadata:bbbext_advgrd_annotation:commenttype',
+                'timestampms'  => 'privacy:metadata:bbbext_advgrd_annotation:timestampms',
+                'timecreated'  => 'privacy:metadata:bbbext_advgrd_annotation:timecreated',
+            ],
+            'privacy:metadata:bbbext_advgrd_annotation'
+        );
+        $collection->add_subsystem_link(
+            'core_files',
+            [],
+            'privacy:metadata:bbbext_advgrd_comment'
         );
         return $collection;
     }
@@ -91,6 +111,20 @@ class provider implements
             'userid'   => $userid,
             'graderid' => $userid,
         ]);
+
+        $annsql = "SELECT ctx.id
+                     FROM {bbbext_advgrd_annotation} a
+                     JOIN {course_modules} cm ON cm.instance = a.bigbluebuttonbnid
+                     JOIN {modules} m ON m.id = cm.module AND m.name = :modname
+                     JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :clmod
+                    WHERE a.targetuserid = :tuid OR a.graderid = :guid";
+        $contextlist->add_from_sql($annsql, [
+            'modname' => 'bigbluebuttonbn',
+            'clmod'   => CONTEXT_MODULE,
+            'tuid'    => $userid,
+            'guid'    => $userid,
+        ]);
+
         return $contextlist;
     }
 
@@ -124,6 +158,24 @@ class provider implements
             'cmid'     => $context->instanceid,
             'modname2' => 'bigbluebuttonbn',
             'cmid2'    => $context->instanceid,
+        ]);
+
+        $annsql = "SELECT a.targetuserid AS uid
+                     FROM {bbbext_advgrd_annotation} a
+                     JOIN {course_modules} cm ON cm.instance = a.bigbluebuttonbnid
+                     JOIN {modules} m ON m.id = cm.module AND m.name = :modname3
+                    WHERE cm.id = :cmid3
+                    UNION
+                   SELECT a.graderid AS uid
+                     FROM {bbbext_advgrd_annotation} a
+                     JOIN {course_modules} cm ON cm.instance = a.bigbluebuttonbnid
+                     JOIN {modules} m ON m.id = cm.module AND m.name = :modname4
+                    WHERE cm.id = :cmid4 AND a.graderid IS NOT NULL";
+        $userlist->add_from_sql('uid', $annsql, [
+            'modname3' => 'bigbluebuttonbn',
+            'cmid3'    => $context->instanceid,
+            'modname4' => 'bigbluebuttonbn',
+            'cmid4'    => $context->instanceid,
         ]);
     }
 
@@ -170,6 +222,52 @@ class provider implements
             }
             writer::with_context($context)->export_data($subcontext, (object) ['grades' => $exported]);
         }
+
+        // Annotations - exported separately so each row carries its filearea attachments.
+        foreach ($contextlist->get_contexts() as $context) {
+            if (!$context instanceof context_module) {
+                continue;
+            }
+            $cm = get_coursemodule_from_id('bigbluebuttonbn', $context->instanceid, 0, false);
+            if (!$cm) {
+                continue;
+            }
+            $rows = $DB->get_records_select(
+                'bbbext_advgrd_annotation',
+                'bigbluebuttonbnid = :bbbid AND (targetuserid = :tuid OR graderid = :guid)',
+                ['bbbid' => $cm->instance, 'tuid' => $userid, 'guid' => $userid]
+            );
+            if (!$rows) {
+                continue;
+            }
+            $exported = [];
+            foreach ($rows as $row) {
+                $exported[] = (object) [
+                    'role'        => ((int) $row->targetuserid === $userid) ? 'addressed' : 'author',
+                    'recordingid' => $row->recordingid,
+                    'timestampms' => (int) $row->timestampms,
+                    'commenttype' => $row->commenttype,
+                    'body'        => writer::with_context($context)->rewrite_pluginfile_urls(
+                        $subcontext,
+                        'bbbext_advgrd',
+                        \bbbext_advgrd\local\annotations::FILEAREA,
+                        $row->id,
+                        $row->body
+                    ),
+                    'timecreated' => userdate($row->timecreated),
+                ];
+                writer::with_context($context)->export_area_files(
+                    $subcontext,
+                    'bbbext_advgrd',
+                    \bbbext_advgrd\local\annotations::FILEAREA,
+                    $row->id
+                );
+            }
+            writer::with_context($context)->export_data(
+                $subcontext,
+                (object) ['annotations' => $exported]
+            );
+        }
     }
 
     /**
@@ -191,6 +289,26 @@ class provider implements
             return;
         }
         $DB->delete_records('bbbext_advgrd_grade', ['configid' => $config->id]);
+
+        // Annotations + their files for this activity.
+        $annids = $DB->get_fieldset_select(
+            'bbbext_advgrd_annotation',
+            'id',
+            'bigbluebuttonbnid = :bbbid',
+            ['bbbid' => $cm->instance]
+        );
+        if ($annids) {
+            $fs = get_file_storage();
+            foreach ($annids as $annid) {
+                $fs->delete_area_files(
+                    $context->id,
+                    'bbbext_advgrd',
+                    \bbbext_advgrd\local\annotations::FILEAREA,
+                    $annid
+                );
+            }
+            $DB->delete_records('bbbext_advgrd_annotation', ['bigbluebuttonbnid' => $cm->instance]);
+        }
     }
 
     /**
@@ -222,6 +340,34 @@ class provider implements
                 'graderid',
                 null,
                 ['configid' => $config->id, 'graderid' => $userid]
+            );
+
+            // Annotations: delete rows where the user was addressed (target), anonymise
+            // graderid where they were the author. Audit policy: addressed students get
+            // their record erased; teacher-authored content stays but loses authorship.
+            $targetannids = $DB->get_fieldset_select(
+                'bbbext_advgrd_annotation',
+                'id',
+                'bigbluebuttonbnid = :bbbid AND targetuserid = :tuid',
+                ['bbbid' => $cm->instance, 'tuid' => $userid]
+            );
+            if ($targetannids) {
+                $fs = get_file_storage();
+                foreach ($targetannids as $annid) {
+                    $fs->delete_area_files(
+                        $context->id,
+                        'bbbext_advgrd',
+                        \bbbext_advgrd\local\annotations::FILEAREA,
+                        $annid
+                    );
+                }
+                $DB->delete_records_list('bbbext_advgrd_annotation', 'id', $targetannids);
+            }
+            $DB->set_field(
+                'bbbext_advgrd_annotation',
+                'graderid',
+                null,
+                ['bigbluebuttonbnid' => $cm->instance, 'graderid' => $userid]
             );
         }
     }
@@ -260,6 +406,34 @@ class provider implements
                 SET graderid = NULL
               WHERE configid = :configid AND graderid {$insql}",
             $params
+        );
+
+        // Annotations: same audit policy as the single-user delete - addressed-student rows
+        // are removed (files too), grader references are anonymised.
+        $annparams = ['bbbid' => $cm->instance] + $inparams;
+        $targetannids = $DB->get_fieldset_select(
+            'bbbext_advgrd_annotation',
+            'id',
+            "bigbluebuttonbnid = :bbbid AND targetuserid {$insql}",
+            $annparams
+        );
+        if ($targetannids) {
+            $fs = get_file_storage();
+            foreach ($targetannids as $annid) {
+                $fs->delete_area_files(
+                    $context->id,
+                    'bbbext_advgrd',
+                    \bbbext_advgrd\local\annotations::FILEAREA,
+                    $annid
+                );
+            }
+            $DB->delete_records_list('bbbext_advgrd_annotation', 'id', $targetannids);
+        }
+        $DB->execute(
+            "UPDATE {bbbext_advgrd_annotation}
+                SET graderid = NULL
+              WHERE bigbluebuttonbnid = :bbbid AND graderid {$insql}",
+            $annparams
         );
     }
 }

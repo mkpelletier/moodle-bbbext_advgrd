@@ -32,3 +32,39 @@ function bbbext_advgrd_grading_areas_list(): array {
         'participation' => get_string('gradingarea_participation', 'bbbext_advgrd'),
     ];
 }
+
+/**
+ * Serve files from the bbbext_advgrd/comment filearea (audio + image attached to annotation
+ * bodies). Discoverable by Moodle's file_pluginfile router.
+ *
+ * @param stdClass $course
+ * @param stdClass $cm
+ * @param context  $context
+ * @param string   $filearea
+ * @param array    $args [itemid, ...path, filename]
+ * @param bool     $forcedownload
+ * @param array    $options
+ * @return bool
+ */
+function bbbext_advgrd_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
+    if ($context->contextlevel !== CONTEXT_MODULE) {
+        return false;
+    }
+    if ($filearea !== \bbbext_advgrd\local\annotations::FILEAREA) {
+        return false;
+    }
+    require_login($course, false, $cm);
+    require_capability('bbbext/advgrd:grade', $context);
+
+    $itemid = (int) array_shift($args);
+    $filename = array_pop($args);
+    $filepath = $args ? '/' . implode('/', $args) . '/' : '/';
+
+    $fs = get_file_storage();
+    $file = $fs->get_file($context->id, 'bbbext_advgrd', $filearea, $itemid, $filepath, $filename);
+    if (!$file || $file->is_directory()) {
+        return false;
+    }
+    send_stored_file($file, 0, 0, $forcedownload, $options);
+    return true;
+}
