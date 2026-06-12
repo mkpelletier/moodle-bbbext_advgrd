@@ -2,6 +2,54 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.2.0] — 2026-06-12
+
+### Added
+
+- **Recording annotation overlay** on the per-user grading page. Below the
+  rubric form, when the BBB activity has recordings, a new pane shows the
+  recording in an HTML5 `<video>` (with click-to-seek) or an iframe to BBB's
+  hosted player (read-only) plus a timeline strip with colored markers per
+  comment, a moving playhead, a current-time readout, and a rich-text
+  comment editor.
+- **Audio recording is native to the editor.** The Atto/TinyMCE editor's
+  file picker enables built-in audio recording (and image / video embedding)
+  via the standard Moodle `recordrtc` integration. The recording is
+  embedded directly in the comment body as a Moodle file - no custom
+  recorder code, no separate audio mode, no dedicated upload endpoint.
+- **Server-side probe of BBB's `/capture/` playback page** caches a
+  directly-playable media URL per recording in `bbbext_advgrd_rec_probe`,
+  so the own-player path skips the network round-trip on subsequent grading
+  visits. Falls back to status=iframe when the capture format is absent.
+- **Privacy provider** declares the new annotation table + comment filearea
+  and walks both target-student and grader-author paths during export, with
+  audit-policy delete semantics (target rows + files purged, grader
+  references anonymised).
+- **External AJAX endpoints** for add / delete / list annotations and probe
+  recording, all gated by `bbbext/advgrd:grade`.
+- **PHPUnit coverage** for the CRUD service: create + reject paths,
+  media-only body, scoped list, delete-cascades-files, update,
+  context_for_annotation.
+
+### Notes
+
+- Schema: `bbbext_advgrd_annotation` (rich-text body + bodyformat +
+  commenttype) and `bbbext_advgrd_rec_probe` (media-URL cache), both
+  created at savepoint 2026061201.
+- JS is inline via `$PAGE->requires->js_amd_inline()` to skip the
+  grunt-amd staleness wall that retired the original on-disk AMD in 0.1.1
+  (commit 1ff8e36).
+- Markers on the timeline only auto-update + seek in **own-player** mode
+  (HTML5 `<video>`). In iframe mode the markers display but click-to-seek
+  surfaces a polite "can't seek into iframe" notice. BBB's iframe player
+  has no JS API to drive from outside.
+- `local_unifiedgrader` is **not** touched in this release. The annotation
+  overlay is only on `bbbext_advgrd`'s own per-user grading page. A later
+  release will add a generic feedback-panel hook in `local_unifiedgrader`
+  that `bbbext_advgrd` subscribes to.
+- The previous v0.2.0 (tabs + custom MediaRecorder) was reverted in commit
+  `12d9548` before this release. See that commit for the rationale.
+
 ## [0.1.1] — 2026-05-26
 
 ### Fixed

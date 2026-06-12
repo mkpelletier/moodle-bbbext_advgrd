@@ -169,7 +169,7 @@ if (!empty($recordings)) {
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('grade_user_heading', 'bbbext_advgrd', fullname($user)));
 
-// --- Evidence panel ---------------------------------------------------------------------
+// Evidence panel.
 $usermetrics = metrics::for_user($bbbinstance, $userid);
 $suggestions = grader::suggest_levels($bbbid, $userid);
 
@@ -212,10 +212,10 @@ if (!empty($suggestions)) {
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
 
-// --- Rubric form ------------------------------------------------------------------------
+// Rubric form.
 $form->display();
 
-// --- Annotation overlay -----------------------------------------------------------------
+// Annotation overlay.
 if ($activerecording) {
     echo html_writer::start_tag('div', ['class' => 'card mt-4 advgrd-annotate']);
     echo html_writer::start_tag('div', ['class' => 'card-body']);
@@ -328,7 +328,7 @@ if ($activerecording) {
         'class' => 'form-select',
     ]);
     echo html_writer::end_tag('div');
-    echo html_writer::end_tag('div'); // .row
+    echo html_writer::end_tag('div');
 
     // Editor textarea + file picker hookup. Atto/TinyMCE wraps this with the toolbar
     // (including audio recording when site config allows).
@@ -382,7 +382,7 @@ if ($activerecording) {
     ]);
     echo html_writer::end_tag('div');
 
-    echo html_writer::end_tag('div'); // .advgrd-comment-form
+    echo html_writer::end_tag('div');
 
     // Existing-comments list - rendered server-side here; refreshed client-side by JS.
     $existingheading = get_string('annotate_existing', 'bbbext_advgrd');
@@ -398,12 +398,12 @@ if ($activerecording) {
     foreach ($existing as $row) {
         echo bbbext_advgrd_render_comment_item($row, $context);
     }
-    echo html_writer::end_tag('div'); // .comment-list
+    echo html_writer::end_tag('div');
 
-    echo html_writer::end_tag('div'); // .card-body
-    echo html_writer::end_tag('div'); // .card
+    echo html_writer::end_tag('div');
+    echo html_writer::end_tag('div');
 
-    // --- Inline JS ----------------------------------------------------------------------
+    // Inline JS for player init, timeline rendering, and comment AJAX.
     $jsbbbid = (int) $bbbid;
     $jsuserid = (int) $userid;
     $jsrecordingid = json_encode($activerecordingid);
