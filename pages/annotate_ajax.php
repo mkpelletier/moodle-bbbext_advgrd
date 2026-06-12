@@ -185,15 +185,15 @@ echo html_writer::empty_tag('input', [
     'id' => 'advgrd-mode-text', 'value' => 'text', 'checked' => 'checked',
     'data-region' => 'mode-text',
 ]);
-echo html_writer::tag('label', get_string('annotation_kind_text', 'bbbext_advgrd'),
-    ['for' => 'advgrd-mode-text', 'class' => 'btn btn-outline-secondary']);
+$textmodelabel = get_string('annotation_kind_text', 'bbbext_advgrd');
+echo html_writer::tag('label', $textmodelabel, ['for' => 'advgrd-mode-text', 'class' => 'btn btn-outline-secondary']);
 echo html_writer::empty_tag('input', [
     'type' => 'radio', 'class' => 'btn-check', 'name' => 'advgrd-mode',
     'id' => 'advgrd-mode-audio', 'value' => 'audio',
     'data-region' => 'mode-audio',
 ]);
-echo html_writer::tag('label', get_string('annotation_kind_audio', 'bbbext_advgrd'),
-    ['for' => 'advgrd-mode-audio', 'class' => 'btn btn-outline-secondary']);
+$audiomodelabel = get_string('annotation_kind_audio', 'bbbext_advgrd');
+echo html_writer::tag('label', $audiomodelabel, ['for' => 'advgrd-mode-audio', 'class' => 'btn btn-outline-secondary']);
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
 
@@ -216,19 +216,22 @@ echo html_writer::start_tag('div', [
     'data-region' => 'audio-fields',
 ]);
 $audiocaptionlabel = get_string('annotate_audio_caption', 'bbbext_advgrd');
-echo html_writer::tag('label', $audiocaptionlabel,
-    ['for' => 'advgrd-audio-caption', 'class' => 'form-label']);
+echo html_writer::tag('label', $audiocaptionlabel, ['for' => 'advgrd-audio-caption', 'class' => 'form-label']);
 echo html_writer::empty_tag('input', [
     'id' => 'advgrd-audio-caption', 'type' => 'text', 'class' => 'form-control mb-2',
     'data-region' => 'audio-caption', 'maxlength' => 200,
 ]);
 echo html_writer::start_tag('div', ['class' => 'd-flex align-items-center gap-2']);
-echo html_writer::tag('button', '● ' . get_string('annotate_record', 'bbbext_advgrd'), [
-    'type' => 'button', 'class' => 'btn btn-danger',
+$recordlabel = '● ' . get_string('annotate_record', 'bbbext_advgrd');
+echo html_writer::tag('button', $recordlabel, [
+    'type' => 'button',
+    'class' => 'btn btn-danger',
     'data-action' => 'audio-record',
 ]);
-echo html_writer::tag('button', '■ ' . get_string('annotate_stop', 'bbbext_advgrd'), [
-    'type' => 'button', 'class' => 'btn btn-secondary d-none',
+$stoplabel = '■ ' . get_string('annotate_stop', 'bbbext_advgrd');
+echo html_writer::tag('button', $stoplabel, [
+    'type' => 'button',
+    'class' => 'btn btn-secondary d-none',
     'data-action' => 'audio-stop',
 ]);
 echo html_writer::tag('span', '', [
@@ -244,7 +247,8 @@ echo html_writer::end_tag('div');
 
 // Post button.
 echo html_writer::start_tag('div', ['class' => 'col-12']);
-echo html_writer::tag('button', get_string('annotate_post', 'bbbext_advgrd'), [
+$postlabel = get_string('annotate_post', 'bbbext_advgrd');
+echo html_writer::tag('button', $postlabel, [
     'type'        => 'button',
     'class'       => 'btn btn-primary',
     'data-action' => 'post-comment',
