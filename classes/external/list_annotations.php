@@ -92,6 +92,7 @@ class list_annotations extends external_api {
             'graderid'     => new external_value(PARAM_INT, 'Author id'),
             'gradername'   => new external_value(PARAM_TEXT, 'Author full name'),
             'timecreated'  => new external_value(PARAM_INT, 'Creation timestamp'),
+            'audiourl'     => new external_value(PARAM_URL, 'Audio playback URL for audio comments'),
         ]));
     }
 }

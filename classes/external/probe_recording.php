@@ -128,6 +128,13 @@ class probe_recording extends external_api {
 
     /**
      * Persist and return the probe row.
+     *
+     * @param int         $bbbid
+     * @param string      $recordingid
+     * @param string|null $mediaurl
+     * @param string      $status
+     * @param int         $durationms
+     * @return \stdClass
      */
     protected static function persist(
         int $bbbid,
@@ -152,6 +159,9 @@ class probe_recording extends external_api {
 
     /**
      * Shape a probe row for the JSON response.
+     *
+     * @param \stdClass $row
+     * @return array
      */
     protected static function shape(\stdClass $row): array {
         return [

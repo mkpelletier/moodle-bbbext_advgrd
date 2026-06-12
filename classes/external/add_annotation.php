@@ -115,6 +115,7 @@ class add_annotation extends external_api {
             'graderid'     => new external_value(PARAM_INT, 'Author id'),
             'gradername'   => new external_value(PARAM_TEXT, 'Author full name'),
             'timecreated'  => new external_value(PARAM_INT, 'Creation timestamp'),
+            'audiourl'     => new external_value(PARAM_URL, 'Audio playback URL for audio comments'),
         ]);
     }
 
@@ -129,6 +130,19 @@ class add_annotation extends external_api {
     public static function row_to_payload(\stdClass $row, int $graderid): array {
         global $DB;
         $author = $DB->get_record('user', ['id' => $row->graderid ?? $graderid], 'id, firstname, lastname');
+        $audiourl = '';
+        if (($row->kind ?? '') === 'audio') {
+            $context = \bbbext_advgrd\local\annotations::context_for_annotation($row);
+            $url = \moodle_url::make_pluginfile_url(
+                $context->id,
+                'bbbext_advgrd',
+                \bbbext_advgrd\local\annotations::AUDIO_FILEAREA,
+                $row->id,
+                '/',
+                'audio.webm'
+            );
+            $audiourl = $url->out(false);
+        }
         return [
             'id'           => (int) $row->id,
             'timestampms'  => (int) $row->timestampms,
@@ -138,6 +152,7 @@ class add_annotation extends external_api {
             'graderid'     => (int) ($row->graderid ?? $graderid),
             'gradername'   => $author ? fullname($author) : '',
             'timecreated'  => (int) $row->timecreated,
+            'audiourl'     => $audiourl,
         ];
     }
 }

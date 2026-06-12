@@ -175,8 +175,30 @@ echo html_writer::select($catoptions, 'commenttype', 'general', false, [
 ]);
 echo html_writer::end_tag('div');
 
-// Body textarea.
-echo html_writer::start_tag('div', ['class' => 'col-12']);
+// Mode toggle (Text / Audio).
+echo html_writer::start_tag('div', ['class' => 'col-md-3']);
+$modelabel = get_string('annotate_mode', 'bbbext_advgrd');
+echo html_writer::tag('label', $modelabel, ['class' => 'form-label']);
+echo html_writer::start_tag('div', ['class' => 'btn-group w-100', 'role' => 'group']);
+echo html_writer::empty_tag('input', [
+    'type' => 'radio', 'class' => 'btn-check', 'name' => 'advgrd-mode',
+    'id' => 'advgrd-mode-text', 'value' => 'text', 'checked' => 'checked',
+    'data-region' => 'mode-text',
+]);
+echo html_writer::tag('label', get_string('annotation_kind_text', 'bbbext_advgrd'),
+    ['for' => 'advgrd-mode-text', 'class' => 'btn btn-outline-secondary']);
+echo html_writer::empty_tag('input', [
+    'type' => 'radio', 'class' => 'btn-check', 'name' => 'advgrd-mode',
+    'id' => 'advgrd-mode-audio', 'value' => 'audio',
+    'data-region' => 'mode-audio',
+]);
+echo html_writer::tag('label', get_string('annotation_kind_audio', 'bbbext_advgrd'),
+    ['for' => 'advgrd-mode-audio', 'class' => 'btn btn-outline-secondary']);
+echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
+
+// Body textarea (visible in text mode).
+echo html_writer::start_tag('div', ['class' => 'col-12', 'data-region' => 'text-fields']);
 $bodylabel = get_string('annotate_body', 'bbbext_advgrd');
 echo html_writer::tag('label', $bodylabel, ['for' => 'advgrd-comment-body', 'class' => 'form-label']);
 echo html_writer::tag('textarea', '', [
@@ -185,6 +207,38 @@ echo html_writer::tag('textarea', '', [
     'rows'        => 3,
     'data-region' => 'body-input',
     'maxlength'   => 4000,
+]);
+echo html_writer::end_tag('div');
+
+// Audio recorder (visible in audio mode).
+echo html_writer::start_tag('div', [
+    'class'       => 'col-12 d-none',
+    'data-region' => 'audio-fields',
+]);
+$audiocaptionlabel = get_string('annotate_audio_caption', 'bbbext_advgrd');
+echo html_writer::tag('label', $audiocaptionlabel,
+    ['for' => 'advgrd-audio-caption', 'class' => 'form-label']);
+echo html_writer::empty_tag('input', [
+    'id' => 'advgrd-audio-caption', 'type' => 'text', 'class' => 'form-control mb-2',
+    'data-region' => 'audio-caption', 'maxlength' => 200,
+]);
+echo html_writer::start_tag('div', ['class' => 'd-flex align-items-center gap-2']);
+echo html_writer::tag('button', '● ' . get_string('annotate_record', 'bbbext_advgrd'), [
+    'type' => 'button', 'class' => 'btn btn-danger',
+    'data-action' => 'audio-record',
+]);
+echo html_writer::tag('button', '■ ' . get_string('annotate_stop', 'bbbext_advgrd'), [
+    'type' => 'button', 'class' => 'btn btn-secondary d-none',
+    'data-action' => 'audio-stop',
+]);
+echo html_writer::tag('span', '', [
+    'class' => 'advgrd-audio-timer fw-bold',
+    'data-region' => 'audio-timer',
+]);
+echo html_writer::end_tag('div');
+echo html_writer::tag('audio', '', [
+    'class' => 'w-100 mt-2 d-none', 'controls' => 'controls',
+    'data-region' => 'audio-preview',
 ]);
 echo html_writer::end_tag('div');
 
@@ -223,11 +277,23 @@ foreach ($existing as $annot) {
     echo html_writer::tag('span', s($time), ['class' => 'advgrd-time fw-bold me-2']);
     $catlabel = get_string('annotation_category_' . $annot->commenttype, 'bbbext_advgrd');
     echo html_writer::tag('span', $catlabel, ['class' => 'advgrd-category-pill badge me-2']);
-    if ($annot->kind === 'audio') {
-        $audiolabel = get_string('annotation_kind_audio', 'bbbext_advgrd');
-        echo html_writer::tag('em', $audiolabel, ['class' => 'me-2']);
-    }
     echo html_writer::tag('span', s($annot->body ?? ''));
+    if ($annot->kind === 'audio') {
+        $audiourl = moodle_url::make_pluginfile_url(
+            $context->id,
+            'bbbext_advgrd',
+            annotations::AUDIO_FILEAREA,
+            $annot->id,
+            '/',
+            'audio.webm'
+        );
+        echo html_writer::tag('audio', '', [
+            'src'      => $audiourl->out(false),
+            'controls' => 'controls',
+            'preload'  => 'none',
+            'class'    => 'd-block mt-1 w-100',
+        ]);
+    }
     if ($author) {
         echo html_writer::tag('small', ' — ' . fullname($author), ['class' => 'text-muted ms-2']);
     }

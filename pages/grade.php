@@ -234,34 +234,53 @@ $annotateurl = (new moodle_url(
     '/mod/bigbluebuttonbn/extension/advgrd/pages/annotate_ajax.php',
     ['id' => $bbbid, 'userid' => $userid]
 ))->out(false);
+$audiouploadurl = (new moodle_url(
+    '/mod/bigbluebuttonbn/extension/advgrd/pages/audio_upload.php'
+))->out(false);
 $failedmsg = get_string('annotate_failed', 'bbbext_advgrd');
 $invalidmsg = get_string('annotate_post_invalid', 'bbbext_advgrd');
 $confirmdelete = get_string('annotate_delete', 'bbbext_advgrd');
 $seekfailedmsg = get_string('annotate_seek_failed', 'bbbext_advgrd');
 $playernamsg = get_string('annotate_no_playback', 'bbbext_advgrd');
+$micdeniedmsg = get_string('annotate_audio_mic_denied', 'bbbext_advgrd');
+$audiofailedmsg = get_string('annotate_audio_failed', 'bbbext_advgrd');
 
 $jsbbbid = (int) $bbbid;
 $jsuserid = (int) $userid;
 $jsannotateurl = json_encode($annotateurl);
+$jsaudioupload = json_encode($audiouploadurl);
 $jsfailed = json_encode($failedmsg);
 $jsinvalid = json_encode($invalidmsg);
 $jsconfirm = json_encode($confirmdelete);
 $jsseekfailed = json_encode($seekfailedmsg);
 $jsplayerna = json_encode($playernamsg);
+$jsmicdenied = json_encode($micdeniedmsg);
+$jsaudiofailed = json_encode($audiofailedmsg);
+$jssesskey = json_encode(sesskey());
 
 $PAGE->requires->js_amd_inline(<<<JS
 require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     var BBBID = {$jsbbbid};
     var USERID = {$jsuserid};
     var ANNOTATE_URL = {$jsannotateurl};
+    var AUDIO_UPLOAD_URL = {$jsaudioupload};
     var FAILED_MSG = {$jsfailed};
     var INVALID_MSG = {$jsinvalid};
     var CONFIRM_DELETE = {$jsconfirm};
     var SEEK_FAILED_MSG = {$jsseekfailed};
     var PLAYER_NA_MSG = {$jsplayerna};
+    var MIC_DENIED_MSG = {$jsmicdenied};
+    var AUDIO_FAILED_MSG = {$jsaudiofailed};
+    var SESSKEY = {$jssesskey};
+    var AUDIO_CAP_MS = 300 * 1000;
     var currentRecordingId = '';
     var loaded = false;
     var ownPlayer = false;
+    var recorder = null;
+    var recorderChunks = [];
+    var recorderBlob = null;
+    var recorderStartMs = 0;
+    var recorderTimerId = 0;
 
     function parseTimestamp(value) {
         var match = String(value || '').trim().match(/^(\d{1,3}):([0-5]\d)$/);
@@ -431,6 +450,14 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             var body = document.createElement('span');
             body.textContent = row.body || '';
             li.appendChild(body);
+            if (row.kind === 'audio' && row.audiourl) {
+                var audio = document.createElement('audio');
+                audio.src = row.audiourl;
+                audio.controls = true;
+                audio.preload = 'none';
+                audio.className = 'd-block mt-1 w-100';
+                li.appendChild(audio);
+            }
             if (row.gradername) {
                 var author = document.createElement('small');
                 author.className = 'text-muted ms-2';
@@ -454,12 +481,23 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
         if (!editor) {
             return;
         }
-        var bodyEl = editor.querySelector('[data-region="body-input"]');
         var tsEl = editor.querySelector('[data-region="timestamp-input"]');
         var catEl = editor.querySelector('[data-region="category-select"]');
         var ms = parseTimestamp(tsEl.value);
+        var modeAudio = editor.querySelector('[data-region="mode-audio"]');
+        var isAudio = modeAudio && modeAudio.checked;
+
+        if (ms === null) {
+            Notification.alert('', INVALID_MSG);
+            return;
+        }
+        if (isAudio) {
+            postAudioComment(editor, ms, catEl.value);
+            return;
+        }
+        var bodyEl = editor.querySelector('[data-region="body-input"]');
         var text = (bodyEl.value || '').trim();
-        if (ms === null || !text) {
+        if (!text) {
             Notification.alert('', INVALID_MSG);
             return;
         }
@@ -478,6 +516,140 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
             tsEl.value = '';
             refreshList();
         }).catch(Notification.exception);
+    }
+
+    function postAudioComment(editor, ms, commenttype) {
+        if (!recorderBlob) {
+            Notification.alert('', INVALID_MSG);
+            return;
+        }
+        var captionEl = editor.querySelector('[data-region="audio-caption"]');
+        var caption = captionEl ? (captionEl.value || '').trim() : '';
+        var form = new FormData();
+        form.append('sesskey', SESSKEY);
+        form.append('id', BBBID);
+        form.append('userid', USERID);
+        form.append('recordingid', currentRecordingId);
+        form.append('timestampms', ms);
+        form.append('commenttype', commenttype);
+        form.append('body', caption);
+        form.append('audiofile', recorderBlob, 'audio.webm');
+        fetch(AUDIO_UPLOAD_URL, {
+            method: 'POST',
+            credentials: 'same-origin',
+            body: form
+        }).then(function(response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            return response.json();
+        }).then(function() {
+            resetAudioRecorder();
+            refreshList();
+        }).catch(function() {
+            Notification.alert('', AUDIO_FAILED_MSG);
+        });
+    }
+
+    function setMode(mode) {
+        var textFields = document.querySelector('[data-region="text-fields"]');
+        var audioFields = document.querySelector('[data-region="audio-fields"]');
+        if (!textFields || !audioFields) {
+            return;
+        }
+        if (mode === 'audio') {
+            textFields.classList.add('d-none');
+            audioFields.classList.remove('d-none');
+        } else {
+            textFields.classList.remove('d-none');
+            audioFields.classList.add('d-none');
+            resetAudioRecorder();
+        }
+    }
+
+    function resetAudioRecorder() {
+        if (recorder && recorder.state !== 'inactive') {
+            try {
+                recorder.stop();
+            } catch (e) { /* Already stopped. */ }
+        }
+        recorder = null;
+        recorderChunks = [];
+        recorderBlob = null;
+        recorderStartMs = 0;
+        if (recorderTimerId) {
+            clearInterval(recorderTimerId);
+            recorderTimerId = 0;
+        }
+        var timer = document.querySelector('[data-region="audio-timer"]');
+        if (timer) {
+            timer.textContent = '';
+        }
+        var preview = document.querySelector('[data-region="audio-preview"]');
+        if (preview) {
+            preview.classList.add('d-none');
+            preview.removeAttribute('src');
+        }
+        var recordBtn = document.querySelector('[data-action="audio-record"]');
+        var stopBtn = document.querySelector('[data-action="audio-stop"]');
+        if (recordBtn) recordBtn.classList.remove('d-none');
+        if (stopBtn) stopBtn.classList.add('d-none');
+    }
+
+    function startRecording() {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            Notification.alert('', MIC_DENIED_MSG);
+            return;
+        }
+        navigator.mediaDevices.getUserMedia({audio: true}).then(function(stream) {
+            recorderChunks = [];
+            recorder = new MediaRecorder(stream, {mimeType: 'audio/webm;codecs=opus'});
+            recorder.ondataavailable = function(ev) {
+                if (ev.data && ev.data.size > 0) {
+                    recorderChunks.push(ev.data);
+                }
+            };
+            recorder.onstop = function() {
+                stream.getTracks().forEach(function(t) { t.stop(); });
+                recorderBlob = new Blob(recorderChunks, {type: 'audio/webm'});
+                var preview = document.querySelector('[data-region="audio-preview"]');
+                if (preview) {
+                    preview.src = URL.createObjectURL(recorderBlob);
+                    preview.classList.remove('d-none');
+                }
+            };
+            recorder.start();
+            recorderStartMs = performance.now();
+            document.querySelector('[data-action="audio-record"]').classList.add('d-none');
+            document.querySelector('[data-action="audio-stop"]').classList.remove('d-none');
+            recorderTimerId = setInterval(updateRecorderTimer, 200);
+        }).catch(function() {
+            Notification.alert('', MIC_DENIED_MSG);
+        });
+    }
+
+    function updateRecorderTimer() {
+        var elapsedMs = performance.now() - recorderStartMs;
+        if (elapsedMs >= AUDIO_CAP_MS) {
+            stopRecording();
+            return;
+        }
+        var timer = document.querySelector('[data-region="audio-timer"]');
+        if (timer) {
+            timer.textContent = formatTimestamp(elapsedMs);
+        }
+    }
+
+    function stopRecording() {
+        if (recorder && recorder.state === 'recording') {
+            recorder.stop();
+        }
+        if (recorderTimerId) {
+            clearInterval(recorderTimerId);
+            recorderTimerId = 0;
+        }
+        document.querySelector('[data-action="audio-record"]').classList.remove('d-none');
+        document.querySelector('[data-action="audio-stop"]').classList.add('d-none');
     }
 
     function deleteComment(id) {
@@ -525,7 +697,19 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 ev.preventDefault();
                 grabCurrentTime();
                 return;
+            } else if (action === 'audio-record') {
+                ev.preventDefault();
+                startRecording();
+                return;
+            } else if (action === 'audio-stop') {
+                ev.preventDefault();
+                stopRecording();
+                return;
             }
+        }
+        // Skip seek when clicking an interactive control inside the comment.
+        if (ev.target.closest('audio, input, button, a')) {
+            return;
         }
         var commentLi = ev.target.closest('.advgrd-comment');
         if (commentLi && commentLi.dataset.timestamp) {
@@ -534,8 +718,13 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     });
 
     document.addEventListener('change', function(ev) {
-        if (ev.target && ev.target.id === 'advgrd-recording-picker') {
+        if (!ev.target) {
+            return;
+        }
+        if (ev.target.id === 'advgrd-recording-picker') {
             loadAnnotate(ev.target.value);
+        } else if (ev.target.name === 'advgrd-mode') {
+            setMode(ev.target.value);
         }
     });
 });
