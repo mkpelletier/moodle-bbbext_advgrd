@@ -1,0 +1,128 @@
+/* Category palette - hex values byte-identical to assignsubmission_ytsubmission so the
+   visual language carries between the two plugins. .advgrd-cat-* classes win specificity
+   over Bootstrap's .badge via the .advgrd-badge co-class on the pill. */
+.advgrd-annotate .advgrd-badge.advgrd-cat-general {
+    background-color: #6c757d;
+    color: #fff;
+}
+
+.advgrd-annotate .advgrd-badge.advgrd-cat-praise {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.advgrd-annotate .advgrd-badge.advgrd-cat-correction {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.advgrd-annotate .advgrd-badge.advgrd-cat-suggestion {
+    background-color: #0d6efd;
+    color: #fff;
+}
+
+.advgrd-annotate .advgrd-badge.advgrd-cat-question {
+    background-color: #6f42c1;
+    color: #fff;
+}
+
+.advgrd-annotate .advgrd-timestamp-link {
+    cursor: pointer;
+    background-color: #495057;
+    text-decoration: none;
+}
+
+.advgrd-annotate .advgrd-timestamp-link:hover {
+    text-decoration: underline;
+}
+
+/* Per-card left border picks up the category colour. */
+.advgrd-annotate .advgrd-comment-item.advgrd-cat-general {
+    border-left: 4px solid #6c757d;
+}
+
+.advgrd-annotate .advgrd-comment-item.advgrd-cat-praise {
+    border-left: 4px solid #28a745;
+}
+
+.advgrd-annotate .advgrd-comment-item.advgrd-cat-correction {
+    border-left: 4px solid #dc3545;
+}
+
+.advgrd-annotate .advgrd-comment-item.advgrd-cat-suggestion {
+    border-left: 4px solid #0d6efd;
+}
+
+.advgrd-annotate .advgrd-comment-item.advgrd-cat-question {
+    border-left: 4px solid #6f42c1;
+}
+
+/* Timeline strip directly below the player, with a moving playhead and clickable markers. */
+.advgrd-annotate .advgrd-timeline-container {
+    position: relative;
+    height: 24px;
+    margin-top: 4px;
+    margin-bottom: 12px;
+}
+
+.advgrd-annotate .advgrd-timeline-bar {
+    position: absolute;
+    top: 10px;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background-color: #dee2e6;
+    border-radius: 2px;
+    cursor: pointer;
+}
+
+.advgrd-annotate .advgrd-timeline-playhead {
+    position: absolute;
+    top: 6px;
+    width: 2px;
+    height: 12px;
+    background-color: #212529;
+    pointer-events: none;
+}
+
+.advgrd-annotate .advgrd-timeline-marker {
+    position: absolute;
+    top: -4px;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    cursor: pointer;
+    transition: transform 0.15s ease;
+}
+
+.advgrd-annotate .advgrd-timeline-marker:hover {
+    transform: scale(1.4);
+}
+
+.advgrd-annotate .advgrd-timeline-marker.advgrd-cat-general {
+    background-color: #6c757d;
+}
+
+.advgrd-annotate .advgrd-timeline-marker.advgrd-cat-praise {
+    background-color: #28a745;
+}
+
+.advgrd-annotate .advgrd-timeline-marker.advgrd-cat-correction {
+    background-color: #dc3545;
+}
+
+.advgrd-annotate .advgrd-timeline-marker.advgrd-cat-suggestion {
+    background-color: #0d6efd;
+}
+
+.advgrd-annotate .advgrd-timeline-marker.advgrd-cat-question {
+    background-color: #6f42c1;
+}
+
+.advgrd-annotate .advgrd-time-display {
+    font-family: var(--bs-font-monospace, monospace);
+    font-weight: 600;
+    color: #495057;
+}

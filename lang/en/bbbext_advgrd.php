@@ -42,6 +42,7 @@ $string['annotate_delete_confirm'] = 'Delete this comment?';
 $string['annotate_existing'] = 'Existing comments';
 $string['annotate_heading'] = 'Recording annotations';
 $string['annotate_iframe_notice'] = 'The recording is shown in the BBB hosted player. Timestamp markers below the player are display-only; click "Use current time" after the player position is right.';
+$string['annotate_loading'] = 'Loading recording…';
 $string['annotate_no_comments'] = 'No comments yet.';
 $string['annotate_no_playback'] = 'No playback URL is available yet for this recording. BBB may still be processing it.';
 $string['annotate_no_recordings'] = 'This BigBlueButton activity has no recordings yet.';
