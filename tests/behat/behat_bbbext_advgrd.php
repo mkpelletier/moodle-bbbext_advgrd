@@ -23,17 +23,7 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// This plugin is symlinked into the Moodle tree
-// (mod/bigbluebuttonbn/extension/advgrd), so __DIR__ resolves to the real
-// out-of-tree location and the usual ../../lib/behat relative path can't reach
-// Moodle's lib/. At behat RUN time the framework has already loaded behat_base
-// before resolving contexts, so the require is a no-op (guarded by
-// class_exists). At behat INIT time (config scan) it isn't loaded yet, but
-// $CFG is populated, so dirroot gives a symlink-proof absolute path.
-if (!class_exists('behat_base')) {
-    global $CFG;
-    require_once($CFG->dirroot . '/lib/behat/behat_base.php');
-}
+require_once(__DIR__ . '/../../../../../../lib/behat/behat_base.php');
 
 use Behat\Gherkin\Node\TableNode;
 use bbbext_advgrd\local\grader;

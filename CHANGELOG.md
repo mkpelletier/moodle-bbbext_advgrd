@@ -2,57 +2,6 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
-## [0.2.0] — 2026-06-12
-
-### Added
-
-- **Recording annotation tool.** A new "Annotate recording" tab on the per-user
-  grading page (`pages/grade.php`) lets teachers leave per-(recording, student)
-  comments anchored to a position in the BigBlueButton recording. Comments
-  carry one of five categories matching the
-  `assignsubmission_ytsubmission` palette (general / praise / correction /
-  suggestion / question) and use the same hex values so the visual language
-  carries between the two plugins.
-- **Text and audio comments.** Each comment is text OR audio. Audio comments
-  use the browser `MediaRecorder` API (opus in webm), are capped at 5 minutes
-  with a live countdown, can be previewed before posting, and stream from a
-  pluginfile callback in `lib.php`. Audio binary lives in a dedicated
-  `bbbext_advgrd/audiocomment` file area.
-- **Own-player mode.** A server-side probe of the BBB `/capture/` playback
-  page (`classes/external/probe_recording.php`) extracts the direct media URL
-  so the tab can render its own HTML5 `<video>` with click-to-seek and a
-  one-button "grab current time" timestamp helper. Probes are cached in
-  `bbbext_advgrd_rec_probe`; failed probes fall back to an iframe of the
-  BBB-hosted player with a polite "cannot seek into iframe" message.
-- **Two new tables** (`bbbext_advgrd_annotation`, `bbbext_advgrd_rec_probe`).
-  Schema in `db/install.xml` + an upgrade step at savepoint 2026052602.
-- **External AJAX endpoints**: `bbbext_advgrd_add_annotation`,
-  `bbbext_advgrd_delete_annotation`, `bbbext_advgrd_list_annotations`,
-  `bbbext_advgrd_probe_recording`. Audio uploads take a dedicated multipart
-  POST endpoint at `pages/audio_upload.php` because external functions can't
-  carry file uploads cleanly.
-- **Privacy provider** extended to declare the annotation table + audio
-  filearea, and to walk both as target and as grader during export. Delete
-  operations anonymise the grader column and purge audio files.
-- **PHPUnit coverage** for the annotation CRUD service
-  (`tests/annotations_test.php`): text create + reject paths, scoped list,
-  delete, audio create + delete-cascades-files, context resolution.
-
-### Notes
-
-- JS lives inline via `$PAGE->requires->js_amd_inline()` to avoid the
-  grunt-amd staleness issue that bit us in 0.1.0 (commit 1ff8e36): the local
-  babel/node versions produced `.map` files that didn't match CI's, and the
-  staleness check failed despite the source being identical.
-- Audio Behat coverage is not in this release. Recording audio requires
-  `getUserMedia` and a real browser; the headless CI runner can't do it.
-  Manual audio testing instructions are in the plan
-  (`/Users/.../plans/i-would-like-to-moonlit-pinwheel.md`).
-- `local_unifiedgrader` is **not** touched in this release per the standing
-  constraint that `local_unifiedgrader` must not depend on `bbbext_advgrd`.
-  Future integration would add a generic feedback-tabs extension API in
-  `local_unifiedgrader` that `bbbext_advgrd` subscribes to.
-
 ## [0.1.1] — 2026-05-26
 
 ### Fixed
