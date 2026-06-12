@@ -20,3 +20,4 @@ vendor/
 .phpunit.result.cache
 coverage/
 *.log
+/phpunit.xml

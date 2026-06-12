@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="mod/bigbluebuttonbn/extension/advgrd/db" VERSION="20260505" COMMENT="Schema for the BBB advanced grading extension."
+<XMLDB PATH="mod/bigbluebuttonbn/extension/advgrd/db" VERSION="20260526" COMMENT="Schema for the BBB advanced grading extension."
        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
        xsi:noNamespaceSchemaLocation="../../../../../lib/xmldb/xmldb.xsd"
 >
@@ -59,6 +59,48 @@
             </KEYS>
             <INDEXES>
                 <INDEX NAME="idx_config_user" UNIQUE="true" FIELDS="configid, userid"/>
+            </INDEXES>
+        </TABLE>
+        <TABLE NAME="bbbext_advgrd_annotation" COMMENT="Teacher-authored timestamped feedback comments on a BBB recording, scoped to one target student.">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="bigbluebuttonbnid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Denormalised FK to bigbluebuttonbn.id."/>
+                <FIELD NAME="recordingid" TYPE="char" LENGTH="128" NOTNULL="true" SEQUENCE="false" COMMENT="BBB recording id (bigbluebuttonbn_recordings.recordingid)."/>
+                <FIELD NAME="targetuserid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="The student this comment is addressed to."/>
+                <FIELD NAME="graderid" TYPE="int" LENGTH="10" NOTNULL="false" SEQUENCE="false" COMMENT="Author (teacher); nullable so privacy delete can anonymise without losing the gradee's record."/>
+                <FIELD NAME="kind" TYPE="char" LENGTH="8" NOTNULL="true" SEQUENCE="false" DEFAULT="text" COMMENT="One of: text, audio."/>
+                <FIELD NAME="timestampms" TYPE="int" LENGTH="12" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="Anchor position into the recording, in milliseconds."/>
+                <FIELD NAME="body" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="For kind=text: the comment text. For kind=audio: optional short caption shown next to the audio play button."/>
+                <FIELD NAME="commenttype" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="general" SEQUENCE="false" COMMENT="Category: general, praise, correction, suggestion, question (matches assignsubmission_ytsubmission palette)."/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_bigbluebuttonbnid" TYPE="foreign" FIELDS="bigbluebuttonbnid" REFTABLE="bigbluebuttonbn" REFFIELDS="id"/>
+                <KEY NAME="fk_targetuserid" TYPE="foreign" FIELDS="targetuserid" REFTABLE="user" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="idx_recording_target" UNIQUE="false" FIELDS="recordingid, targetuserid"/>
+            </INDEXES>
+        </TABLE>
+        <TABLE NAME="bbbext_advgrd_rec_probe" COMMENT="Cached result of probing a BBB recording for an own-player media URL.">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="bigbluebuttonbnid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Denormalised FK to bigbluebuttonbn.id."/>
+                <FIELD NAME="recordingid" TYPE="char" LENGTH="128" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="mediaurl" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Direct media URL extracted from the capture playback page (nullable on iframe/failed status)."/>
+                <FIELD NAME="probestatus" TYPE="char" LENGTH="16" NOTNULL="true" DEFAULT="failed" SEQUENCE="false" COMMENT="One of: ok, iframe, failed."/>
+                <FIELD NAME="durationms" TYPE="int" LENGTH="12" NOTNULL="false" SEQUENCE="false" COMMENT="Recording duration in milliseconds, when known."/>
+                <FIELD NAME="iframeurl" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Fallback iframe URL when own-player is not viable."/>
+                <FIELD NAME="timeprobed" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_bigbluebuttonbnid" TYPE="foreign" FIELDS="bigbluebuttonbnid" REFTABLE="bigbluebuttonbn" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="idx_recording" UNIQUE="true" FIELDS="recordingid"/>
             </INDEXES>
         </TABLE>
     </TABLES>

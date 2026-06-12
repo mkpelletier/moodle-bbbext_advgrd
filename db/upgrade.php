@@ -125,5 +125,228 @@ function xmldb_bbbext_advgrd_upgrade(int $oldversion): bool {
         upgrade_plugin_savepoint(true, 2026050801, 'bbbext', 'advgrd');
     }
 
+    if ($oldversion < 2026052602) {
+        // Add the recording-annotation feature: a per-(recording, target student) feedback
+        // table that holds either text or audio comments, and a recording-probe cache used
+        // by the player to decide between own-player and iframe-fallback mode. Both tables
+        // mirror install.xml; this branch creates them in-place for installs upgrading from
+        // 0.1.x.
+        $annot = new xmldb_table('bbbext_advgrd_annotation');
+        if (!$dbman->table_exists($annot)) {
+            $annot->addField(new xmldb_field(
+                'id',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                XMLDB_NOTNULL,
+                XMLDB_SEQUENCE,
+                null
+            ));
+            $annot->addField(new xmldb_field(
+                'bigbluebuttonbnid',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                null
+            ));
+            $annot->addField(new xmldb_field(
+                'recordingid',
+                XMLDB_TYPE_CHAR,
+                '128',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                null
+            ));
+            $annot->addField(new xmldb_field(
+                'targetuserid',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                null
+            ));
+            $annot->addField(new xmldb_field(
+                'graderid',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                null,
+                null,
+                null
+            ));
+            $annot->addField(new xmldb_field(
+                'kind',
+                XMLDB_TYPE_CHAR,
+                '8',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                'text'
+            ));
+            $annot->addField(new xmldb_field(
+                'timestampms',
+                XMLDB_TYPE_INTEGER,
+                '12',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                '0'
+            ));
+            $annot->addField(new xmldb_field(
+                'body',
+                XMLDB_TYPE_TEXT,
+                null,
+                null,
+                null,
+                null,
+                null
+            ));
+            $annot->addField(new xmldb_field(
+                'commenttype',
+                XMLDB_TYPE_CHAR,
+                '20',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                'general'
+            ));
+            $annot->addField(new xmldb_field(
+                'timecreated',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                null
+            ));
+            $annot->addField(new xmldb_field(
+                'timemodified',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                null
+            ));
+            $annot->addKey(new xmldb_key('primary', XMLDB_KEY_PRIMARY, ['id']));
+            $annot->addKey(new xmldb_key(
+                'fk_bigbluebuttonbnid',
+                XMLDB_KEY_FOREIGN,
+                ['bigbluebuttonbnid'],
+                'bigbluebuttonbn',
+                ['id']
+            ));
+            $annot->addKey(new xmldb_key(
+                'fk_targetuserid',
+                XMLDB_KEY_FOREIGN,
+                ['targetuserid'],
+                'user',
+                ['id']
+            ));
+            $annot->addIndex(new xmldb_index(
+                'idx_recording_target',
+                XMLDB_INDEX_NOTUNIQUE,
+                ['recordingid', 'targetuserid']
+            ));
+            $dbman->create_table($annot);
+        }
+
+        $probe = new xmldb_table('bbbext_advgrd_rec_probe');
+        if (!$dbman->table_exists($probe)) {
+            $probe->addField(new xmldb_field(
+                'id',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                XMLDB_NOTNULL,
+                XMLDB_SEQUENCE,
+                null
+            ));
+            $probe->addField(new xmldb_field(
+                'bigbluebuttonbnid',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                null
+            ));
+            $probe->addField(new xmldb_field(
+                'recordingid',
+                XMLDB_TYPE_CHAR,
+                '128',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                null
+            ));
+            $probe->addField(new xmldb_field(
+                'mediaurl',
+                XMLDB_TYPE_TEXT,
+                null,
+                null,
+                null,
+                null,
+                null
+            ));
+            $probe->addField(new xmldb_field(
+                'probestatus',
+                XMLDB_TYPE_CHAR,
+                '16',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                'failed'
+            ));
+            $probe->addField(new xmldb_field(
+                'durationms',
+                XMLDB_TYPE_INTEGER,
+                '12',
+                null,
+                null,
+                null,
+                null
+            ));
+            $probe->addField(new xmldb_field(
+                'iframeurl',
+                XMLDB_TYPE_TEXT,
+                null,
+                null,
+                null,
+                null,
+                null
+            ));
+            $probe->addField(new xmldb_field(
+                'timeprobed',
+                XMLDB_TYPE_INTEGER,
+                '10',
+                null,
+                XMLDB_NOTNULL,
+                null,
+                null
+            ));
+            $probe->addKey(new xmldb_key('primary', XMLDB_KEY_PRIMARY, ['id']));
+            $probe->addKey(new xmldb_key(
+                'fk_bigbluebuttonbnid',
+                XMLDB_KEY_FOREIGN,
+                ['bigbluebuttonbnid'],
+                'bigbluebuttonbn',
+                ['id']
+            ));
+            $probe->addIndex(new xmldb_index(
+                'idx_recording',
+                XMLDB_INDEX_UNIQUE,
+                ['recordingid']
+            ));
+            $dbman->create_table($probe);
+        }
+
+        upgrade_plugin_savepoint(true, 2026052602, 'bbbext', 'advgrd');
+    }
+
     return true;
 }
