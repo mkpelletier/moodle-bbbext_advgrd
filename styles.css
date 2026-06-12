@@ -1,0 +1,23 @@
+/* Category palette — byte-identical to assignsubmission_ytsubmission so the visual language
+   carries between plugins. Kept as plain hex (not CSS custom properties) to match that source. */
+.advgrd-cat-general .advgrd-category-pill { background-color: #6c757d !important; color: #fff; }
+.advgrd-cat-praise .advgrd-category-pill { background-color: #28a745 !important; color: #fff; }
+.advgrd-cat-correction .advgrd-category-pill { background-color: #dc3545 !important; color: #fff; }
+.advgrd-cat-suggestion .advgrd-category-pill { background-color: #0d6efd !important; color: #fff; }
+.advgrd-cat-question .advgrd-category-pill { background-color: #6f42c1 !important; color: #fff; }
+
+.advgrd-cat-general { border-left: 4px solid #6c757d !important; }
+.advgrd-cat-praise { border-left: 4px solid #28a745 !important; }
+.advgrd-cat-correction { border-left: 4px solid #dc3545 !important; }
+.advgrd-cat-suggestion { border-left: 4px solid #0d6efd !important; }
+.advgrd-cat-question { border-left: 4px solid #6f42c1 !important; }
+
+.advgrd-comment { background-color: #f8f9fa; }
+.advgrd-time { font-family: var(--bs-font-monospace, monospace); color: #495057; }
+
+#advgrd-tabs .nav-link { color: #495057; }
+#advgrd-tabs .nav-link.active { font-weight: 600; }
+
+#advgrd-pane-annotate[data-state="loading"] [data-region="annotate-placeholder"]::after {
+    content: " ⏳";
+}

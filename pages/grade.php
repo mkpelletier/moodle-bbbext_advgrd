@@ -15,7 +15,9 @@
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Single-user grading page: displays an evidence panel and the rubric/guide grading form.
+ * Single-user grading page: rubric grading + engagement-evidence pane + recording-annotation pane,
+ * presented as three Bootstrap tabs. The annotate tab body is lazy-fetched from annotate_ajax.php
+ * on first activation.
  *
  * @package    bbbext_advgrd
  * @copyright  2026, South African Theological Seminary
@@ -113,15 +115,81 @@ if ($form->is_cancelled()) {
     );
 }
 
-echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('grade_user_heading', 'bbbext_advgrd', fullname($user)));
-
-// Evidence panel: metrics + suggested levels.
+// Compute evidence data once so we can drop it in the Evidence pane below.
 $bbbinstance = instance::get_from_instanceid($bbbid);
 $usermetrics = metrics::for_user($bbbinstance, $userid);
 $suggestions = grader::suggest_levels($bbbid, $userid);
 
-echo html_writer::start_tag('div', ['class' => 'card mb-3']);
+echo $OUTPUT->header();
+echo $OUTPUT->heading(get_string('grade_user_heading', 'bbbext_advgrd', fullname($user)));
+
+// Render the tab nav. We hand-roll the Bootstrap markup rather than using $OUTPUT->tabtree()
+// because tabtree builds full-reload links — we need client-side tab activation with deep-link
+// fragments so the rubric form state survives a tab switch.
+$tabsnav = <<<HTML
+<ul class="nav nav-tabs mb-3" id="advgrd-tabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="advgrd-tab-rubric" data-bs-toggle="tab"
+                data-bs-target="#advgrd-pane-rubric" type="button" role="tab"
+                aria-controls="advgrd-pane-rubric" aria-selected="true">
+HTML;
+$tabsnav .= s(get_string('tab_rubric', 'bbbext_advgrd'));
+$tabsnav .= <<<HTML
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="advgrd-tab-annotate" data-bs-toggle="tab"
+                data-bs-target="#advgrd-pane-annotate" type="button" role="tab"
+                aria-controls="advgrd-pane-annotate" aria-selected="false">
+HTML;
+$tabsnav .= s(get_string('tab_annotate', 'bbbext_advgrd'));
+$tabsnav .= <<<HTML
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="advgrd-tab-evidence" data-bs-toggle="tab"
+                data-bs-target="#advgrd-pane-evidence" type="button" role="tab"
+                aria-controls="advgrd-pane-evidence" aria-selected="false">
+HTML;
+$tabsnav .= s(get_string('tab_evidence', 'bbbext_advgrd'));
+$tabsnav .= '</button></li></ul>';
+echo $tabsnav;
+
+echo html_writer::start_tag('div', ['class' => 'tab-content', 'id' => 'advgrd-tab-content']);
+
+// --- Rubric tab ---------------------------------------------------------------------------
+echo html_writer::start_tag('div', [
+    'class'           => 'tab-pane fade show active',
+    'id'              => 'advgrd-pane-rubric',
+    'role'            => 'tabpanel',
+    'aria-labelledby' => 'advgrd-tab-rubric',
+]);
+$form->display();
+echo html_writer::end_tag('div');
+
+// --- Annotate tab (lazy-loaded by AMD) ----------------------------------------------------
+echo html_writer::start_tag('div', [
+    'class'           => 'tab-pane fade',
+    'id'              => 'advgrd-pane-annotate',
+    'role'            => 'tabpanel',
+    'aria-labelledby' => 'advgrd-tab-annotate',
+    'data-state'      => 'pending',
+]);
+echo html_writer::tag(
+    'div',
+    get_string('annotate_loading', 'bbbext_advgrd'),
+    ['class' => 'text-muted', 'data-region' => 'annotate-placeholder']
+);
+echo html_writer::end_tag('div');
+
+// --- Evidence tab -------------------------------------------------------------------------
+echo html_writer::start_tag('div', [
+    'class'           => 'tab-pane fade',
+    'id'              => 'advgrd-pane-evidence',
+    'role'            => 'tabpanel',
+    'aria-labelledby' => 'advgrd-tab-evidence',
+]);
+echo html_writer::start_tag('div', ['class' => 'card']);
 echo html_writer::start_tag('div', ['class' => 'card-body']);
 echo html_writer::tag('h3', get_string('evidence_heading', 'bbbext_advgrd'), ['class' => 'card-title']);
 
@@ -158,9 +226,226 @@ if (!empty($suggestions)) {
 }
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
+echo html_writer::end_tag('div');
 
-$form->display();
+echo html_writer::end_tag('div'); // .tab-content
 
-echo html_writer::link($listurl, get_string('grade_back_to_list', 'bbbext_advgrd'), ['class' => 'btn btn-link']);
+$annotateurl = (new moodle_url(
+    '/mod/bigbluebuttonbn/extension/advgrd/pages/annotate_ajax.php',
+    ['id' => $bbbid, 'userid' => $userid]
+))->out(false);
+$failedmsg = get_string('annotate_failed', 'bbbext_advgrd');
+$invalidmsg = get_string('annotate_post_invalid', 'bbbext_advgrd');
+$confirmdelete = get_string('annotate_delete', 'bbbext_advgrd');
+
+$jsbbbid = (int) $bbbid;
+$jsuserid = (int) $userid;
+$jsannotateurl = json_encode($annotateurl);
+$jsfailed = json_encode($failedmsg);
+$jsinvalid = json_encode($invalidmsg);
+$jsconfirm = json_encode($confirmdelete);
+
+$PAGE->requires->js_amd_inline(<<<JS
+require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
+    var BBBID = {$jsbbbid};
+    var USERID = {$jsuserid};
+    var ANNOTATE_URL = {$jsannotateurl};
+    var FAILED_MSG = {$jsfailed};
+    var INVALID_MSG = {$jsinvalid};
+    var CONFIRM_DELETE = {$jsconfirm};
+    var currentRecordingId = '';
+    var loaded = false;
+
+    function parseTimestamp(value) {
+        var match = String(value || '').trim().match(/^(\d{1,3}):([0-5]\d)$/);
+        if (!match) {
+            return null;
+        }
+        return (parseInt(match[1], 10) * 60 + parseInt(match[2], 10)) * 1000;
+    }
+
+    function formatTimestamp(ms) {
+        var total = Math.max(0, Math.floor(ms / 1000));
+        return Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0');
+    }
+
+    function loadAnnotate(recordingid) {
+        var pane = document.getElementById('advgrd-pane-annotate');
+        if (!pane) {
+            return;
+        }
+        pane.dataset.state = 'loading';
+        var url = ANNOTATE_URL + (recordingid ? '&recordingid=' + encodeURIComponent(recordingid) : '');
+        fetch(url, {credentials: 'same-origin'}).then(function(response) {
+            if (!response.ok) {
+                throw new Error('HTTP ' + response.status);
+            }
+            return response.text();
+        }).then(function(html) {
+            pane.innerHTML = html;
+            pane.dataset.state = 'ready';
+            var editor = pane.querySelector('[data-region="comment-editor"]');
+            if (editor) {
+                currentRecordingId = editor.dataset.recordingid || '';
+            }
+            loaded = true;
+        }).catch(function(err) {
+            pane.dataset.state = 'error';
+            pane.innerHTML = '<div class="alert alert-danger">' + FAILED_MSG + '</div>';
+            window.console && window.console.warn('advgrd annotate load failed', err);
+        });
+    }
+
+    function refreshList() {
+        var pane = document.getElementById('advgrd-pane-annotate');
+        if (!pane || !currentRecordingId) {
+            return;
+        }
+        Ajax.call([{
+            methodname: 'bbbext_advgrd_list_annotations',
+            args: {bbbid: BBBID, recordingid: currentRecordingId, targetuserid: USERID}
+        }])[0].then(function(rows) {
+            renderList(rows);
+        }).catch(Notification.exception);
+    }
+
+    function renderList(rows) {
+        var list = document.querySelector('[data-region="comment-items"]');
+        var empty = document.querySelector('[data-region="empty-state"]');
+        if (!list) {
+            return;
+        }
+        list.innerHTML = '';
+        if (!rows.length) {
+            if (!empty) {
+                var p = document.createElement('p');
+                p.className = 'text-muted';
+                p.dataset.region = 'empty-state';
+                p.textContent = '';
+                list.parentNode.insertBefore(p, list);
+            }
+            return;
+        }
+        if (empty) {
+            empty.remove();
+        }
+        rows.forEach(function(row) {
+            var li = document.createElement('li');
+            li.className = 'advgrd-comment advgrd-cat-' + row.commenttype + ' mb-2 p-2 border rounded';
+            li.dataset.id = row.id;
+            li.dataset.timestamp = row.timestampms;
+            li.dataset.category = row.commenttype;
+            var time = document.createElement('span');
+            time.className = 'advgrd-time fw-bold me-2';
+            time.textContent = formatTimestamp(row.timestampms);
+            li.appendChild(time);
+            var pill = document.createElement('span');
+            pill.className = 'advgrd-category-pill badge me-2';
+            pill.textContent = row.commenttype;
+            li.appendChild(pill);
+            var body = document.createElement('span');
+            body.textContent = row.body || '';
+            li.appendChild(body);
+            if (row.gradername) {
+                var author = document.createElement('small');
+                author.className = 'text-muted ms-2';
+                author.textContent = ' — ' + row.gradername;
+                li.appendChild(author);
+            }
+            var del = document.createElement('button');
+            del.type = 'button';
+            del.className = 'btn btn-sm btn-link text-danger float-end';
+            del.dataset.action = 'delete-comment';
+            del.dataset.id = row.id;
+            del.title = CONFIRM_DELETE;
+            del.textContent = '×';
+            li.appendChild(del);
+            list.appendChild(li);
+        });
+    }
+
+    function postComment() {
+        var editor = document.querySelector('[data-region="comment-editor"]');
+        if (!editor) {
+            return;
+        }
+        var bodyEl = editor.querySelector('[data-region="body-input"]');
+        var tsEl = editor.querySelector('[data-region="timestamp-input"]');
+        var catEl = editor.querySelector('[data-region="category-select"]');
+        var ms = parseTimestamp(tsEl.value);
+        var text = (bodyEl.value || '').trim();
+        if (ms === null || !text) {
+            Notification.alert('', INVALID_MSG);
+            return;
+        }
+        Ajax.call([{
+            methodname: 'bbbext_advgrd_add_annotation',
+            args: {
+                bbbid: BBBID,
+                recordingid: currentRecordingId,
+                targetuserid: USERID,
+                timestampms: ms,
+                body: text,
+                commenttype: catEl.value
+            }
+        }])[0].then(function() {
+            bodyEl.value = '';
+            tsEl.value = '';
+            refreshList();
+        }).catch(Notification.exception);
+    }
+
+    function deleteComment(id) {
+        if (!window.confirm(CONFIRM_DELETE + '?')) {
+            return;
+        }
+        Ajax.call([{
+            methodname: 'bbbext_advgrd_delete_annotation',
+            args: {id: parseInt(id, 10)}
+        }])[0].then(function() {
+            refreshList();
+        }).catch(Notification.exception);
+    }
+
+    // Lazy-load on first activation of the annotate tab.
+    var tabBtn = document.getElementById('advgrd-tab-annotate');
+    if (tabBtn) {
+        tabBtn.addEventListener('shown.bs.tab', function() {
+            if (!loaded) {
+                loadAnnotate('');
+            }
+        });
+    }
+
+    // Deep-link via #advgrd-pane-annotate fragment.
+    if (window.location.hash === '#advgrd-pane-annotate' && tabBtn) {
+        tabBtn.click();
+    }
+
+    // Event delegation for editor + comment-list interactions.
+    document.addEventListener('click', function(ev) {
+        var target = ev.target.closest('[data-action]');
+        if (!target) {
+            return;
+        }
+        var action = target.dataset.action;
+        if (action === 'post-comment') {
+            ev.preventDefault();
+            postComment();
+        } else if (action === 'delete-comment') {
+            ev.preventDefault();
+            deleteComment(target.dataset.id);
+        }
+    });
+
+    document.addEventListener('change', function(ev) {
+        if (ev.target && ev.target.id === 'advgrd-recording-picker') {
+            loadAnnotate(ev.target.value);
+        }
+    });
+});
+JS);
+
+echo html_writer::link($listurl, get_string('grade_back_to_list', 'bbbext_advgrd'), ['class' => 'btn btn-link mt-3']);
 
 echo $OUTPUT->footer();
