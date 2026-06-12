@@ -38,7 +38,6 @@ use moodle_exception;
  * in the activity, matching the existing rubric-grade flow.
  */
 class delete_annotation extends external_api {
-
     /**
      * Parameter declaration.
      *

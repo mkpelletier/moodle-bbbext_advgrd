@@ -157,7 +157,7 @@ echo $tabsnav;
 
 echo html_writer::start_tag('div', ['class' => 'tab-content', 'id' => 'advgrd-tab-content']);
 
-// --- Rubric tab ---------------------------------------------------------------------------
+// Rubric tab.
 echo html_writer::start_tag('div', [
     'class'           => 'tab-pane fade show active',
     'id'              => 'advgrd-pane-rubric',
@@ -167,7 +167,7 @@ echo html_writer::start_tag('div', [
 $form->display();
 echo html_writer::end_tag('div');
 
-// --- Annotate tab (lazy-loaded by AMD) ----------------------------------------------------
+// Annotate tab - lazy-loaded after first activation.
 echo html_writer::start_tag('div', [
     'class'           => 'tab-pane fade',
     'id'              => 'advgrd-pane-annotate',
@@ -182,7 +182,7 @@ echo html_writer::tag(
 );
 echo html_writer::end_tag('div');
 
-// --- Evidence tab -------------------------------------------------------------------------
+// Evidence tab.
 echo html_writer::start_tag('div', [
     'class'           => 'tab-pane fade',
     'id'              => 'advgrd-pane-evidence',
@@ -228,7 +228,7 @@ echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
 
-echo html_writer::end_tag('div'); // .tab-content
+echo html_writer::end_tag('div');
 
 $annotateurl = (new moodle_url(
     '/mod/bigbluebuttonbn/extension/advgrd/pages/annotate_ajax.php',
@@ -237,6 +237,8 @@ $annotateurl = (new moodle_url(
 $failedmsg = get_string('annotate_failed', 'bbbext_advgrd');
 $invalidmsg = get_string('annotate_post_invalid', 'bbbext_advgrd');
 $confirmdelete = get_string('annotate_delete', 'bbbext_advgrd');
+$seekfailedmsg = get_string('annotate_seek_failed', 'bbbext_advgrd');
+$playernamsg = get_string('annotate_no_playback', 'bbbext_advgrd');
 
 $jsbbbid = (int) $bbbid;
 $jsuserid = (int) $userid;
@@ -244,6 +246,8 @@ $jsannotateurl = json_encode($annotateurl);
 $jsfailed = json_encode($failedmsg);
 $jsinvalid = json_encode($invalidmsg);
 $jsconfirm = json_encode($confirmdelete);
+$jsseekfailed = json_encode($seekfailedmsg);
+$jsplayerna = json_encode($playernamsg);
 
 $PAGE->requires->js_amd_inline(<<<JS
 require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
@@ -253,8 +257,11 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
     var FAILED_MSG = {$jsfailed};
     var INVALID_MSG = {$jsinvalid};
     var CONFIRM_DELETE = {$jsconfirm};
+    var SEEK_FAILED_MSG = {$jsseekfailed};
+    var PLAYER_NA_MSG = {$jsplayerna};
     var currentRecordingId = '';
     var loaded = false;
+    var ownPlayer = false;
 
     function parseTimestamp(value) {
         var match = String(value || '').trim().match(/^(\d{1,3}):([0-5]\d)$/);
@@ -289,11 +296,89 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
                 currentRecordingId = editor.dataset.recordingid || '';
             }
             loaded = true;
+            initPlayer();
         }).catch(function(err) {
             pane.dataset.state = 'error';
             pane.innerHTML = '<div class="alert alert-danger">' + FAILED_MSG + '</div>';
             window.console && window.console.warn('advgrd annotate load failed', err);
         });
+    }
+
+    function initPlayer() {
+        var region = document.querySelector('[data-region="player"]');
+        if (!region || !currentRecordingId) {
+            return;
+        }
+        var fallback = region.dataset.fallbackUrl || '';
+        ownPlayer = false;
+        Ajax.call([{
+            methodname: 'bbbext_advgrd_probe_recording',
+            args: {bbbid: BBBID, recordingid: currentRecordingId, refresh: false}
+        }])[0].then(function(result) {
+            if (result.status === 'ok' && result.mediaurl) {
+                renderVideo(region, result.mediaurl);
+                ownPlayer = true;
+            } else if (fallback) {
+                renderIframe(region, fallback);
+            } else {
+                region.innerHTML = '<div class="alert alert-warning">' + PLAYER_NA_MSG + '</div>';
+            }
+        }).catch(function() {
+            if (fallback) {
+                renderIframe(region, fallback);
+            } else {
+                region.innerHTML = '<div class="alert alert-warning">' + PLAYER_NA_MSG + '</div>';
+            }
+        });
+    }
+
+    function renderVideo(region, src) {
+        region.innerHTML = '';
+        var v = document.createElement('video');
+        v.src = src;
+        v.controls = true;
+        v.preload = 'metadata';
+        v.className = 'w-100 border rounded';
+        v.style.maxHeight = '480px';
+        v.dataset.role = 'advgrd-video';
+        region.appendChild(v);
+    }
+
+    function renderIframe(region, src) {
+        region.innerHTML = '';
+        var f = document.createElement('iframe');
+        f.src = src;
+        f.width = '100%';
+        f.height = '480';
+        f.setAttribute('allowfullscreen', 'allowfullscreen');
+        f.className = 'border rounded';
+        region.appendChild(f);
+    }
+
+    function getOwnVideo() {
+        return document.querySelector('[data-role="advgrd-video"]');
+    }
+
+    function grabCurrentTime() {
+        var v = getOwnVideo();
+        if (!v || isNaN(v.currentTime)) {
+            Notification.alert('', SEEK_FAILED_MSG);
+            return;
+        }
+        var tsEl = document.querySelector('[data-region="timestamp-input"]');
+        if (tsEl) {
+            tsEl.value = formatTimestamp(Math.floor(v.currentTime * 1000));
+        }
+    }
+
+    function seekTo(ms) {
+        var v = getOwnVideo();
+        if (!v) {
+            Notification.alert('', SEEK_FAILED_MSG);
+            return;
+        }
+        v.currentTime = ms / 1000;
+        v.play().catch(function() { /* autoplay may be blocked; harmless. */ });
     }
 
     function refreshList() {
@@ -424,17 +509,27 @@ require(['core/ajax', 'core/notification'], function(Ajax, Notification) {
 
     // Event delegation for editor + comment-list interactions.
     document.addEventListener('click', function(ev) {
-        var target = ev.target.closest('[data-action]');
-        if (!target) {
-            return;
+        var actionTarget = ev.target.closest('[data-action]');
+        if (actionTarget) {
+            var action = actionTarget.dataset.action;
+            if (action === 'post-comment') {
+                ev.preventDefault();
+                postComment();
+                return;
+            } else if (action === 'delete-comment') {
+                ev.preventDefault();
+                ev.stopPropagation();
+                deleteComment(actionTarget.dataset.id);
+                return;
+            } else if (action === 'grab-current-time') {
+                ev.preventDefault();
+                grabCurrentTime();
+                return;
+            }
         }
-        var action = target.dataset.action;
-        if (action === 'post-comment') {
-            ev.preventDefault();
-            postComment();
-        } else if (action === 'delete-comment') {
-            ev.preventDefault();
-            deleteComment(target.dataset.id);
+        var commentLi = ev.target.closest('.advgrd-comment');
+        if (commentLi && commentLi.dataset.timestamp) {
+            seekTo(parseInt(commentLi.dataset.timestamp, 10));
         }
     });
 

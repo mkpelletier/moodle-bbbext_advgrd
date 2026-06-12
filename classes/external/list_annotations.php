@@ -36,7 +36,6 @@ use core_external\external_value;
  * Returns the timeline-ready annotation list. Used by the JS to refresh after a post or delete.
  */
 class list_annotations extends external_api {
-
     /**
      * Parameter declaration.
      *

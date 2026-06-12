@@ -49,4 +49,12 @@ $functions = [
         'ajax'        => true,
         'capabilities' => 'bbbext/advgrd:grade',
     ],
+    'bbbext_advgrd_probe_recording' => [
+        'classname'   => 'bbbext_advgrd\\external\\probe_recording',
+        'methodname'  => 'execute',
+        'description' => 'Probe a BBB recording for a directly playable media URL.',
+        'type'        => 'write',
+        'ajax'        => true,
+        'capabilities' => 'bbbext/advgrd:grade',
+    ],
 ];

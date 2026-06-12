@@ -100,31 +100,28 @@ if (count($recordings) > 1) {
     echo html_writer::end_tag('div');
 }
 
-// Player placeholder (filled by annotate_player.js post-MVP; in v1 we render an iframe to
-// BBB's hosted player so the teacher can scrub manually).
-$playbackurl = '';
+// Player container. The inline JS calls probe_recording to decide between own-player (HTML5
+// <video> with click-to-seek) and iframe-fallback. We pass the iframe-fallback URL as a data
+// attribute so the JS doesn't need a second round-trip when the probe says 'iframe' or 'failed'.
+$fallbackurl = '';
 foreach ($active->get('playbacks') ?? [] as $playback) {
     if (!empty($playback['url'])) {
-        $playbackurl = (string) $playback['url'];
+        $fallbackurl = (string) $playback['url'];
         break;
     }
 }
-echo html_writer::start_tag('div', ['data-region' => 'player', 'class' => 'mb-3']);
-if ($playbackurl) {
-    echo html_writer::tag('iframe', '', [
-        'src'         => $playbackurl,
-        'width'       => '100%',
-        'height'      => '480',
-        'allowfullscreen' => 'allowfullscreen',
-        'class'       => 'border rounded',
-        'data-region' => 'player-iframe',
-    ]);
-} else {
-    echo $OUTPUT->notification(
-        get_string('annotate_no_playback', 'bbbext_advgrd'),
-        \core\output\notification::NOTIFY_WARNING
-    );
-}
+echo html_writer::start_tag('div', [
+    'data-region'    => 'player',
+    'class'          => 'mb-3',
+    'data-bbbid'     => $bbbid,
+    'data-recordingid' => $recordingid,
+    'data-fallback-url' => $fallbackurl,
+]);
+echo html_writer::div(
+    get_string('annotate_loading', 'bbbext_advgrd'),
+    'text-muted',
+    ['data-region' => 'player-placeholder']
+);
 echo html_writer::end_tag('div');
 
 // Comment editor: category dropdown, text body, manual timestamp (mm:ss), Post button.
@@ -136,15 +133,16 @@ echo html_writer::start_tag('div', [
     'data-targetuserid' => $userid,
 ]);
 echo html_writer::start_tag('div', ['class' => 'card-body']);
-echo html_writer::tag('h5', get_string('annotate_post_heading', 'bbbext_advgrd', fullname($user)),
-    ['class' => 'card-title']);
+$heading = get_string('annotate_post_heading', 'bbbext_advgrd', fullname($user));
+echo html_writer::tag('h5', $heading, ['class' => 'card-title']);
 
 echo html_writer::start_tag('div', ['class' => 'row g-2']);
 
 // Timestamp input.
 echo html_writer::start_tag('div', ['class' => 'col-md-2']);
-echo html_writer::tag('label', get_string('annotate_timestamp', 'bbbext_advgrd'),
-    ['for' => 'advgrd-comment-time', 'class' => 'form-label']);
+$timestamplabel = get_string('annotate_timestamp', 'bbbext_advgrd');
+echo html_writer::tag('label', $timestamplabel, ['for' => 'advgrd-comment-time', 'class' => 'form-label']);
+echo html_writer::start_tag('div', ['class' => 'input-group']);
 echo html_writer::empty_tag('input', [
     'id'          => 'advgrd-comment-time',
     'type'        => 'text',
@@ -153,12 +151,19 @@ echo html_writer::empty_tag('input', [
     'data-region' => 'timestamp-input',
     'pattern'     => '^[0-9]{1,3}:[0-5][0-9]$',
 ]);
+echo html_writer::tag('button', '⏱', [
+    'type'        => 'button',
+    'class'       => 'btn btn-outline-secondary',
+    'data-action' => 'grab-current-time',
+    'title'       => get_string('annotate_use_current_time', 'bbbext_advgrd'),
+]);
+echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
 
 // Category dropdown.
 echo html_writer::start_tag('div', ['class' => 'col-md-3']);
-echo html_writer::tag('label', get_string('annotate_category', 'bbbext_advgrd'),
-    ['for' => 'advgrd-comment-category', 'class' => 'form-label']);
+$categorylabel = get_string('annotate_category', 'bbbext_advgrd');
+echo html_writer::tag('label', $categorylabel, ['for' => 'advgrd-comment-category', 'class' => 'form-label']);
 $catoptions = [];
 foreach (annotations::CATEGORIES as $cat) {
     $catoptions[$cat] = get_string('annotation_category_' . $cat, 'bbbext_advgrd');
@@ -172,8 +177,8 @@ echo html_writer::end_tag('div');
 
 // Body textarea.
 echo html_writer::start_tag('div', ['class' => 'col-12']);
-echo html_writer::tag('label', get_string('annotate_body', 'bbbext_advgrd'),
-    ['for' => 'advgrd-comment-body', 'class' => 'form-label']);
+$bodylabel = get_string('annotate_body', 'bbbext_advgrd');
+echo html_writer::tag('label', $bodylabel, ['for' => 'advgrd-comment-body', 'class' => 'form-label']);
 echo html_writer::tag('textarea', '', [
     'id'          => 'advgrd-comment-body',
     'class'       => 'form-control',
@@ -192,17 +197,18 @@ echo html_writer::tag('button', get_string('annotate_post', 'bbbext_advgrd'), [
 ]);
 echo html_writer::end_tag('div');
 
-echo html_writer::end_tag('div'); // .row
+echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
 echo html_writer::end_tag('div');
 
-// Comment list — populated server-side now and refreshed client-side after posts.
+// Comment list - populated server-side now and refreshed client-side after posts.
 $existing = annotations::list_for_review($bbbid, $recordingid, $userid);
 echo html_writer::start_tag('div', ['data-region' => 'comment-list']);
-echo html_writer::tag('h5', get_string('annotate_comments_heading', 'bbbext_advgrd'), ['class' => 'mb-2']);
+$commentsheading = get_string('annotate_comments_heading', 'bbbext_advgrd');
+echo html_writer::tag('h5', $commentsheading, ['class' => 'mb-2']);
 if (empty($existing)) {
-    echo html_writer::tag('p', get_string('annotate_no_comments', 'bbbext_advgrd'),
-        ['class' => 'text-muted', 'data-region' => 'empty-state']);
+    $nocomments = get_string('annotate_no_comments', 'bbbext_advgrd');
+    echo html_writer::tag('p', $nocomments, ['class' => 'text-muted', 'data-region' => 'empty-state']);
 }
 echo html_writer::start_tag('ul', ['class' => 'list-unstyled', 'data-region' => 'comment-items']);
 foreach ($existing as $annot) {
@@ -215,12 +221,11 @@ foreach ($existing as $annot) {
         'data-category' => $annot->commenttype,
     ]);
     echo html_writer::tag('span', s($time), ['class' => 'advgrd-time fw-bold me-2']);
-    echo html_writer::tag('span',
-        get_string('annotation_category_' . $annot->commenttype, 'bbbext_advgrd'),
-        ['class' => 'advgrd-category-pill badge me-2']);
+    $catlabel = get_string('annotation_category_' . $annot->commenttype, 'bbbext_advgrd');
+    echo html_writer::tag('span', $catlabel, ['class' => 'advgrd-category-pill badge me-2']);
     if ($annot->kind === 'audio') {
-        echo html_writer::tag('em', get_string('annotation_kind_audio', 'bbbext_advgrd'),
-            ['class' => 'me-2']);
+        $audiolabel = get_string('annotation_kind_audio', 'bbbext_advgrd');
+        echo html_writer::tag('em', $audiolabel, ['class' => 'me-2']);
     }
     echo html_writer::tag('span', s($annot->body ?? ''));
     if ($author) {

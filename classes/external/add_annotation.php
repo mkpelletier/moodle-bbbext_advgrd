@@ -38,7 +38,6 @@ use core_external\external_value;
  * handles text only.
  */
 class add_annotation extends external_api {
-
     /**
      * Parameter declaration.
      *
@@ -66,8 +65,14 @@ class add_annotation extends external_api {
      * @param string $commenttype
      * @return array
      */
-    public static function execute(int $bbbid, string $recordingid, int $targetuserid,
-                                   int $timestampms, string $body, string $commenttype): array {
+    public static function execute(
+        int $bbbid,
+        string $recordingid,
+        int $targetuserid,
+        int $timestampms,
+        string $body,
+        string $commenttype
+    ): array {
         global $USER;
         $params = self::validate_parameters(self::execute_parameters(), [
             'bbbid'        => $bbbid,
