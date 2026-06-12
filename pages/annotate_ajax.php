@@ -103,12 +103,24 @@ if (count($recordings) > 1) {
 // Player container. The inline JS calls probe_recording to decide between own-player (HTML5
 // <video> with click-to-seek) and iframe-fallback. We pass the iframe-fallback URL as a data
 // attribute so the JS doesn't need a second round-trip when the probe says 'iframe' or 'failed'.
+// Pick the richest playback for the iframe fallback. Order matches unifiedgrader's
+// extract_playback_url: presentation > video > first available. We resolve to a plain
+// (unescaped) URL string with out(false); casting to (string) would invoke __toString
+// which uses out(true), double-encoding & to &amp; once html_writer escapes the
+// attribute - the browser would then decode to &amp; and bbb_view.php would parse
+// "amp;bn" as the key, default bn to 0, and redirect to the site frontpage.
 $fallbackurl = '';
-foreach ($active->get('playbacks') ?? [] as $playback) {
-    if (!empty($playback['url'])) {
-        $fallbackurl = (string) $playback['url'];
-        break;
+$playbacks = $active->get('playbacks') ?? [];
+$bytype = [];
+foreach ($playbacks as $pb) {
+    if (!isset($pb['type'], $pb['url']) || empty($pb['url'])) {
+        continue;
     }
+    $url = $pb['url'];
+    $bytype[$pb['type']] = $url instanceof moodle_url ? $url->out(false) : (string) $url;
+}
+if (!empty($bytype)) {
+    $fallbackurl = $bytype['presentation'] ?? $bytype['video'] ?? reset($bytype);
 }
 echo html_writer::start_tag('div', [
     'data-region'    => 'player',
