@@ -190,5 +190,52 @@ function xmldb_bbbext_advgrd_upgrade(int $oldversion): bool {
         upgrade_plugin_savepoint(true, 2026061201, 'bbbext', 'advgrd');
     }
 
+    if ($oldversion < 2026061203) {
+        // Probe regex in 0.2.0 only matched <video src=...> and missed the more common
+        // <source src="..."> child tag that BBB's /capture/ player actually uses, so every
+        // probe cached as 'iframe' or 'failed'. Clear those rows so the next page load
+        // re-probes with the corrected regex. Cached 'ok' rows are untouched.
+        $DB->delete_records_select(
+            'bbbext_advgrd_rec_probe',
+            "probestatus IN ('iframe', 'failed')"
+        );
+        upgrade_plugin_savepoint(true, 2026061203, 'bbbext', 'advgrd');
+    }
+
+    if ($oldversion < 2026061204) {
+        // 0.2.1 only asked BBB for the 'capture' playback type, but on recent BBB builds
+        // the camera-only player is exposed under 'video' instead - the old lookup returned
+        // null and the probe cached 'iframe'. Same fix-up as the 0.2.1 step: drop the stale
+        // non-ok rows so the next page load re-probes.
+        $DB->delete_records_select(
+            'bbbext_advgrd_rec_probe',
+            "probestatus IN ('iframe', 'failed')"
+        );
+        upgrade_plugin_savepoint(true, 2026061204, 'bbbext', 'advgrd');
+    }
+
+    if ($oldversion < 2026061210) {
+        // Reusable comment library for graders. Mirrors assignsubmission_ytsubmission's
+        // _comlib table: each row is owned by a user, courseid=0 means personal, courseid>0
+        // means shared at that course level.
+        $comlib = new xmldb_table('bbbext_advgrd_comlib');
+        if (!$dbman->table_exists($comlib)) {
+            $comlib->addField(new xmldb_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE));
+            $comlib->addField(new xmldb_field('userid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL));
+            $comlib->addField(new xmldb_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0'));
+            $comlib->addField(new xmldb_field('commenttext', XMLDB_TYPE_TEXT, null, null, XMLDB_NOTNULL));
+            $comlib->addField(new xmldb_field('commenttype', XMLDB_TYPE_CHAR, '20', null, XMLDB_NOTNULL, null, 'general'));
+            $comlib->addField(new xmldb_field('sortorder', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0'));
+            $comlib->addField(new xmldb_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL));
+            $comlib->addField(new xmldb_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0'));
+            $comlib->addKey(new xmldb_key('primary', XMLDB_KEY_PRIMARY, ['id']));
+            $comlib->addKey(new xmldb_key('fk_userid', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']));
+            $comlib->addIndex(new xmldb_index('idx_courseid', XMLDB_INDEX_NOTUNIQUE, ['courseid']));
+            $comlib->addIndex(new xmldb_index('idx_user_type', XMLDB_INDEX_NOTUNIQUE, ['userid', 'commenttype']));
+            $dbman->create_table($comlib);
+        }
+        upgrade_plugin_savepoint(true, 2026061210, 'bbbext', 'advgrd');
+    }
+
     return true;
 }

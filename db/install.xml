@@ -84,6 +84,26 @@
                 <INDEX NAME="idx_recording_target" UNIQUE="false" FIELDS="recordingid, targetuserid"/>
             </INDEXES>
         </TABLE>
+        <TABLE NAME="bbbext_advgrd_comlib" COMMENT="Reusable comment library entries authored by graders. courseid=0 means a personal entry; courseid&gt;0 means shared at the course level.">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="userid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false" COMMENT="Owner of the entry."/>
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false" COMMENT="0=personal, course id=shared at course."/>
+                <FIELD NAME="commenttext" TYPE="text" NOTNULL="true" SEQUENCE="false" COMMENT="Stored body HTML."/>
+                <FIELD NAME="commenttype" TYPE="char" LENGTH="20" NOTNULL="true" DEFAULT="general" SEQUENCE="false"/>
+                <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="fk_userid" TYPE="foreign" FIELDS="userid" REFTABLE="user" REFFIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="idx_courseid" UNIQUE="false" FIELDS="courseid"/>
+                <INDEX NAME="idx_user_type" UNIQUE="false" FIELDS="userid, commenttype"/>
+            </INDEXES>
+        </TABLE>
         <TABLE NAME="bbbext_advgrd_rec_probe" COMMENT="Cached server-side probe of a BBB recording for a directly playable media URL.">
             <FIELDS>
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>

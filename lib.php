@@ -46,7 +46,68 @@ function bbbext_advgrd_grading_areas_list(): array {
  * @param array    $options
  * @return bool
  */
+/**
+ * Render the bbbext_advgrd recording-annotation overlay for embedding in a host page (e.g.
+ * local_unifiedgrader's preview pane). Returns null when the activity isn't a BBB instance,
+ * the caller lacks the grading capability, or the activity has no recordings.
+ *
+ * Other plugins call this without depending on bbbext_advgrd: `function_exists()` gates it,
+ * so the integration degrades cleanly when bbbext_advgrd isn't installed.
+ *
+ * @param int         $cmid             Course-module id of the BBB activity.
+ * @param int         $userid           Target student id.
+ * @param string|null $recordingidparam Active recording id (URL param); null picks the first.
+ * @return string|null Overlay HTML, or null if nothing to render.
+ */
+function bbbext_advgrd_render_overlay(int $cmid, int $userid, ?string $recordingidparam = null): ?string {
+    global $DB, $USER;
+    $cm = get_coursemodule_from_id('bigbluebuttonbn', $cmid, 0, false);
+    if (!$cm) {
+        return null;
+    }
+    $context = context_module::instance($cm->id);
+
+    // Auto-detect the render mode: when the caller is viewing their OWN feedback we render
+    // the read-only student overlay (no editor, no library, no delete buttons). When they're
+    // viewing someone else's, they need the grader capability for the full authoring UI.
+    $mode = \bbbext_advgrd\local\overlay::MODE_GRADER;
+    if ((int) $userid === (int) $USER->id && has_capability('bbbext/advgrd:viewownreport', $context)) {
+        $mode = \bbbext_advgrd\local\overlay::MODE_STUDENT;
+    } else if (!has_capability('bbbext/advgrd:grade', $context)) {
+        return null;
+    }
+
+    $user = $DB->get_record('user', ['id' => $userid]);
+    if (!$user) {
+        return null;
+    }
+    $html = \bbbext_advgrd\local\overlay::render(
+        (int) $cm->instance,
+        $userid,
+        $recordingidparam,
+        $context,
+        $user,
+        $mode
+    );
+    return $html !== '' ? $html : null;
+}
+
+/**
+ * Serve files from the bbbext_advgrd/comment filearea (audio + image attached to annotation
+ * bodies). Discoverable by Moodle's file_pluginfile router. Graders get any file in the
+ * activity; students may only stream files attached to annotations addressed to them.
+ *
+ * @param stdClass $course
+ * @param stdClass $cm
+ * @param context  $context
+ * @param string   $filearea
+ * @param array    $args [itemid, ...path, filename]
+ * @param bool     $forcedownload
+ * @param array    $options
+ * @return bool
+ */
 function bbbext_advgrd_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
+    global $DB, $USER;
     if ($context->contextlevel !== CONTEXT_MODULE) {
         return false;
     }
@@ -54,11 +115,23 @@ function bbbext_advgrd_pluginfile($course, $cm, $context, $filearea, $args, $for
         return false;
     }
     require_login($course, false, $cm);
-    require_capability('bbbext/advgrd:grade', $context);
 
     $itemid = (int) array_shift($args);
     $filename = array_pop($args);
     $filepath = $args ? '/' . implode('/', $args) . '/' : '/';
+
+    // Access control: graders can read any file in the activity; students can read only
+    // files attached to comments addressed to them. The itemid is the annotation row id, so
+    // a single lookup tells us the addressed user.
+    if (!has_capability('bbbext/advgrd:grade', $context)) {
+        if (!has_capability('bbbext/advgrd:viewownreport', $context)) {
+            return false;
+        }
+        $targetuserid = $DB->get_field('bbbext_advgrd_annotation', 'targetuserid', ['id' => $itemid]);
+        if (!$targetuserid || (int) $targetuserid !== (int) $USER->id) {
+            return false;
+        }
+    }
 
     $fs = get_file_storage();
     $file = $fs->get_file($context->id, 'bbbext_advgrd', $filearea, $itemid, $filepath, $filename);

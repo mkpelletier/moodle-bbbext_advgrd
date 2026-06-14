@@ -36,12 +36,13 @@ use core_privacy\local\request\writer;
 /**
  * Declares the per-user data this plugin stores and how to export, delete, and discover it.
  *
- * The plugin owns five tables:
+ * The plugin owns six tables:
  *   - bbbext_advgrd_config       — per-activity setup, no per-user data.
  *   - bbbext_advgrd_metric_map   — teacher-defined criterion/metric mappings, no per-user data.
  *   - bbbext_advgrd_grade        — per-user grade + frozen engagement evidence (PII).
  *   - bbbext_advgrd_annotation   — per-(recording, student) teacher feedback comments (PII).
  *   - bbbext_advgrd_rec_probe    — cached server-side recording probes, no per-user data.
+ *   - bbbext_advgrd_comlib       — reusable comment-library entries authored by graders (PII).
  *
  * Plus the bbbext_advgrd/comment filearea (audio/image attached to annotation bodies).
  */
@@ -80,6 +81,17 @@ class provider implements
                 'timecreated'  => 'privacy:metadata:bbbext_advgrd_annotation:timecreated',
             ],
             'privacy:metadata:bbbext_advgrd_annotation'
+        );
+        $collection->add_database_table(
+            'bbbext_advgrd_comlib',
+            [
+                'userid'      => 'privacy:metadata:bbbext_advgrd_comlib:userid',
+                'courseid'    => 'privacy:metadata:bbbext_advgrd_comlib:courseid',
+                'commenttext' => 'privacy:metadata:bbbext_advgrd_comlib:commenttext',
+                'commenttype' => 'privacy:metadata:bbbext_advgrd_comlib:commenttype',
+                'timecreated' => 'privacy:metadata:bbbext_advgrd_comlib:timecreated',
+            ],
+            'privacy:metadata:bbbext_advgrd_comlib'
         );
         $collection->add_subsystem_link(
             'core_files',
@@ -124,6 +136,21 @@ class provider implements
             'tuid'    => $userid,
             'guid'    => $userid,
         ]);
+
+        // Comment library: personal entries (courseid=0) live under the user's own user
+        // context; shared entries (courseid>0) live under that course's context.
+        $contextlist->add_from_sql(
+            "SELECT ctx.id FROM {bbbext_advgrd_comlib} cl
+               JOIN {context} ctx ON ctx.instanceid = cl.userid AND ctx.contextlevel = :cluser
+              WHERE cl.userid = :usercl AND cl.courseid = 0",
+            ['cluser' => CONTEXT_USER, 'usercl' => $userid]
+        );
+        $contextlist->add_from_sql(
+            "SELECT DISTINCT ctx.id FROM {bbbext_advgrd_comlib} cl
+               JOIN {context} ctx ON ctx.instanceid = cl.courseid AND ctx.contextlevel = :clcourse
+              WHERE cl.userid = :coursecl AND cl.courseid > 0",
+            ['clcourse' => CONTEXT_COURSE, 'coursecl' => $userid]
+        );
 
         return $contextlist;
     }
@@ -177,6 +204,20 @@ class provider implements
             'modname4' => 'bigbluebuttonbn',
             'cmid4'    => $context->instanceid,
         ]);
+
+        // Comment library: a user-context surfaces only its owner; a course-context
+        // surfaces every grader who has saved at least one shared entry in that course.
+        if ($context->contextlevel === CONTEXT_USER) {
+            $userlist->add_user($context->instanceid);
+        } else if ($context->contextlevel === CONTEXT_COURSE) {
+            $userlist->add_from_sql(
+                'uid',
+                "SELECT DISTINCT userid AS uid
+                   FROM {bbbext_advgrd_comlib}
+                  WHERE courseid = :courseid",
+                ['courseid' => $context->instanceid]
+            );
+        }
     }
 
     /**
@@ -268,6 +309,48 @@ class provider implements
                 (object) ['annotations' => $exported]
             );
         }
+
+        // Comment library: personal entries surface under the user's own user context;
+        // course-shared entries surface under the course context.
+        foreach ($contextlist->get_contexts() as $context) {
+            if ($context->contextlevel === CONTEXT_USER && $context->instanceid === $userid) {
+                $rows = $DB->get_records('bbbext_advgrd_comlib', ['userid' => $userid, 'courseid' => 0]);
+                self::export_comlib_rows($context, $subcontext, $rows);
+            } else if ($context->contextlevel === CONTEXT_COURSE) {
+                $rows = $DB->get_records('bbbext_advgrd_comlib', [
+                    'userid'   => $userid,
+                    'courseid' => $context->instanceid,
+                ]);
+                self::export_comlib_rows($context, $subcontext, $rows);
+            }
+        }
+    }
+
+    /**
+     * Helper for export_user_data: shape + emit a set of comlib rows under the given context.
+     *
+     * @param context     $context
+     * @param string[]    $subcontext
+     * @param \stdClass[] $rows
+     * @return void
+     */
+    private static function export_comlib_rows(context $context, array $subcontext, array $rows): void {
+        if (!$rows) {
+            return;
+        }
+        $exported = [];
+        foreach ($rows as $row) {
+            $exported[] = (object) [
+                'commenttype' => $row->commenttype,
+                'commenttext' => $row->commenttext,
+                'scope'       => $row->courseid > 0 ? 'course' : 'personal',
+                'timecreated' => userdate($row->timecreated),
+            ];
+        }
+        writer::with_context($context)->export_data(
+            $subcontext,
+            (object) ['libraryentries' => $exported]
+        );
     }
 
     /**
@@ -277,6 +360,19 @@ class provider implements
      */
     public static function delete_data_for_all_users_in_context(context $context): void {
         global $DB;
+        // Comment library has its own context model - handle it up here before the
+        // activity-context guard below kicks in.
+        if ($context->contextlevel === CONTEXT_USER) {
+            $DB->delete_records('bbbext_advgrd_comlib', [
+                'userid'   => $context->instanceid,
+                'courseid' => 0,
+            ]);
+            return;
+        }
+        if ($context->contextlevel === CONTEXT_COURSE) {
+            $DB->delete_records('bbbext_advgrd_comlib', ['courseid' => $context->instanceid]);
+            return;
+        }
         if (!$context instanceof context_module) {
             return;
         }
@@ -323,6 +419,22 @@ class provider implements
 
         $userid = $contextlist->get_user()->id;
         foreach ($contextlist->get_contexts() as $context) {
+            // Library entries: handled per-context level - user context = personal entries,
+            // course context = shared entries by this user in that course.
+            if ($context->contextlevel === CONTEXT_USER && $context->instanceid === $userid) {
+                $DB->delete_records('bbbext_advgrd_comlib', [
+                    'userid'   => $userid,
+                    'courseid' => 0,
+                ]);
+                continue;
+            }
+            if ($context->contextlevel === CONTEXT_COURSE) {
+                $DB->delete_records('bbbext_advgrd_comlib', [
+                    'userid'   => $userid,
+                    'courseid' => $context->instanceid,
+                ]);
+                continue;
+            }
             if (!$context instanceof context_module) {
                 continue;
             }
@@ -381,6 +493,26 @@ class provider implements
         global $DB;
 
         $context = $userlist->get_context();
+        $userids = $userlist->get_userids();
+
+        // Library deletes mirror the per-user path: scope by context level + the listed users.
+        if ($userids) {
+            [$cinsql, $cinparams] = $DB->get_in_or_equal($userids, SQL_PARAMS_NAMED, 'cu');
+            if ($context->contextlevel === CONTEXT_USER && in_array($context->instanceid, $userids, true)) {
+                $DB->delete_records_select(
+                    'bbbext_advgrd_comlib',
+                    "courseid = 0 AND userid {$cinsql}",
+                    $cinparams
+                );
+            } else if ($context->contextlevel === CONTEXT_COURSE) {
+                $DB->delete_records_select(
+                    'bbbext_advgrd_comlib',
+                    "courseid = :courseid AND userid {$cinsql}",
+                    ['courseid' => $context->instanceid] + $cinparams
+                );
+            }
+        }
+
         if (!$context instanceof context_module) {
             return;
         }
@@ -392,7 +524,6 @@ class provider implements
         if (!$config) {
             return;
         }
-        $userids = $userlist->get_userids();
         if (!$userids) {
             return;
         }

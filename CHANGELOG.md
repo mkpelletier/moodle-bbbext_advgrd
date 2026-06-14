@@ -2,6 +2,79 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.3.0] — 2026-06-14
+
+### Added
+
+- **Reusable overlay renderer** (`bbbext_advgrd\local\overlay`) extracts the
+  player + timeline + comment form + comment list + callout into one class
+  so any host page can embed the overlay. Public entry point
+  `bbbext_advgrd_render_overlay($cmid, $userid)` in `lib.php` lets other
+  plugins integrate without a hard dependency (loose `function_exists`
+  detection on the caller side).
+- **Reusable comment library** (`bbbext_advgrd_comlib` table, three external
+  endpoints) modelled on `assignsubmission_ytsubmission`. Personal + course-
+  shared scopes, search, filter pills, scope picker on save. UI: Insert /
+  Save buttons under the editor, slide-down panel with both libraries.
+- **Media-comment callouts** over the recording instead of scrolling to the
+  card:
+  - **Video** comments → 230×230 circular bubble with custom playback
+    controls (centred play/pause, slim progress strip, current-time
+    readout) and an **expand toggle** that pops it out to a 480×300 rounded
+    rectangle for screencast feedback that needs fine detail.
+  - **Audio** comments → 280×180 squircle with the same control set.
+  - **Text** comments → 280-wide squircle with the rendered HTML body and
+    scroll for longer comments.
+- **External chrome** for every callout: floating category chip (rgba so
+  the video shows through) and a circular close button, both rendered as
+  siblings of the bubble so the `overflow: hidden` clip can't touch them.
+- **Timeline markers** carry FontAwesome glyphs (`fa-volume-up` for audio,
+  `fa-video-camera` for video, coloured dot for text) and a hover tooltip
+  with the category + timestamp + preview text. Markers near the bar's
+  left / right edges pin the tooltip's anchor to keep it on-screen.
+- **Student / read-only mode.** `overlay::render()` accepts a `$mode` arg
+  (`MODE_GRADER` or `MODE_STUDENT`); the lib.php wrapper auto-detects mode
+  from `$USER->id === $userid`. Student mode skips the editor, library,
+  and delete buttons; `pluginfile` allows students to stream feedback
+  files attached to their own annotations only.
+- **`local_unifiedgrader` integration** — the BBB adapter calls our
+  overlay renderer, `preview_bbb.mustache` falls back to the iframe path
+  when the function isn't available. Fullscreen target falls through to
+  `.advgrd-player-wrapper` so view_feedback.php works too.
+
+### Fixed
+
+- **Probe path 1**: regex now matches `<source src="…">` (the actual shape
+  of BBB's `/capture/` HTML), not only `<video src="…">`.
+- **Probe path 2**: try playback type `video` before `capture` — modern
+  BBB builds expose the camera-only player under `video`.
+- **Iframe URL double-encoding** — `(string) $url` invoked `out(true)`
+  which HTML-escapes `&`, which `html_writer` then escaped again,
+  producing `bn=0` server-side and a redirect to the site frontpage.
+  Now uses `$url->out(false)` explicitly.
+- **TinyMCE comment save** — `getContent()` follows `editor.save()`,
+  matching ytsubmission. The `.catch()` surfaces real exceptions via
+  `Notification.exception` rather than a generic "Could not save".
+- `editor_options()` hard-codes `-1` for `maxfiles` because
+  `EDITOR_UNLIMITED_FILES` (defined in `lib/formslib.php`) isn't loaded by
+  Moodle's AJAX service router; the page-render path loaded it
+  transitively via the rubric mform so only the AJAX add path tripped.
+- Variant-class leak between callouts: clicking text → video opened the
+  video as a squircle until the page was reloaded; the callout's class
+  list is now reset between shows.
+
+### Changed
+
+- **Add Comment auto-grabs the playhead position** when the own-player is
+  mounted - the teacher doesn't need to click ⏱ first. The mm:ss input
+  still wins when the player isn't available (iframe fallback).
+- **Comment cards mirror ytsubmission**: clock-icon timestamp pill (clickable
+  to seek), human-readable category label (Praise / Correction / …) instead
+  of the raw key, trash-icon delete button.
+- New comments **append optimistically** with a fade-in and auto-scroll
+  into view; deletions fade out and remove their timeline marker. Replaces
+  the post-action full list re-fetch.
+
 ## [0.2.0] — 2026-06-12
 
 ### Added

@@ -2,27 +2,27 @@
    visual language carries between the two plugins. .advgrd-cat-* classes win specificity
    over Bootstrap's .badge via the .advgrd-badge co-class on the pill. */
 .advgrd-annotate .advgrd-badge.advgrd-cat-general {
-    background-color: #6c757d;
+    background-color: rgba(108, 117, 125, 0.85);
     color: #fff;
 }
 
 .advgrd-annotate .advgrd-badge.advgrd-cat-praise {
-    background-color: #28a745;
+    background-color: rgba(40, 167, 69, 0.85);
     color: #fff;
 }
 
 .advgrd-annotate .advgrd-badge.advgrd-cat-correction {
-    background-color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.85);
     color: #fff;
 }
 
 .advgrd-annotate .advgrd-badge.advgrd-cat-suggestion {
-    background-color: #0d6efd;
+    background-color: rgba(13, 110, 253, 0.85);
     color: #fff;
 }
 
 .advgrd-annotate .advgrd-badge.advgrd-cat-question {
-    background-color: #6f42c1;
+    background-color: rgba(111, 66, 193, 0.85);
     color: #fff;
 }
 
@@ -57,10 +57,12 @@
     border-left: 4px solid #6f42c1;
 }
 
-/* Timeline strip directly below the player, with a moving playhead and clickable markers. */
+/* Timeline strip directly below the player, with a moving playhead and clickable markers.
+   Bar is intentionally chunky (15px) so the markers can sit ON the bar at a size large
+   enough to host a FontAwesome glyph for audio / video feedback. */
 .advgrd-annotate .advgrd-timeline-container {
     position: relative;
-    height: 24px;
+    height: 36px;
     margin-top: 4px;
     margin-bottom: 12px;
 }
@@ -70,35 +72,89 @@
     top: 10px;
     left: 0;
     right: 0;
-    height: 4px;
+    height: 15px;
     background-color: #dee2e6;
-    border-radius: 2px;
+    border-radius: 8px;
     cursor: pointer;
 }
 
 .advgrd-annotate .advgrd-timeline-playhead {
     position: absolute;
-    top: 6px;
+    top: 4px;
     width: 2px;
-    height: 12px;
+    height: 27px;
     background-color: #212529;
     pointer-events: none;
 }
 
 .advgrd-annotate .advgrd-timeline-marker {
     position: absolute;
-    top: -4px;
-    width: 12px;
-    height: 12px;
-    margin-left: -6px;
+    top: -3px;
+    width: 22px;
+    height: 22px;
+    margin-left: -11px;
     border-radius: 50%;
     border: 2px solid #fff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
     cursor: pointer;
     transition: transform 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 11px;
+    line-height: 1;
 }
 
 .advgrd-annotate .advgrd-timeline-marker:hover {
-    transform: scale(1.4);
+    transform: scale(1.25);
+}
+
+.advgrd-annotate .advgrd-timeline-marker .fa {
+    pointer-events: none;
+}
+
+/* Text-only markers stay as a coloured dot so the timeline doesn't get visually noisy
+   for the common case. Reduce them slightly so they read as "indicator" not "button". */
+.advgrd-annotate .advgrd-timeline-marker.advgrd-marker-text {
+    width: 16px;
+    height: 16px;
+    margin-left: -8px;
+    top: 0;
+}
+
+/* Tooltip that pops above the marker on hover - text-comment markers carry the comment
+   preview; media markers carry the click-to-play hint. Use visibility (not just opacity)
+   so the tooltip is fully removed from interaction even if cascading style overrides hit
+   the opacity rule. */
+.advgrd-annotate .advgrd-timeline-tooltip {
+    position: absolute;
+    bottom: 22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #212529;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    line-height: 1.3;
+    white-space: nowrap;
+    max-width: 280px;
+    width: max-content;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.15s ease, visibility 0s linear 0.15s;
+    z-index: 20;
+}
+
+.advgrd-annotate .advgrd-timeline-marker:hover .advgrd-timeline-tooltip,
+.advgrd-annotate .advgrd-timeline-marker:focus-within .advgrd-timeline-tooltip {
+    visibility: visible;
+    opacity: 1;
+    transition-delay: 0s;
 }
 
 .advgrd-annotate .advgrd-timeline-marker.advgrd-cat-general {
@@ -125,4 +181,349 @@
     font-family: var(--bs-font-monospace, monospace);
     font-weight: 600;
     color: #495057;
+}
+
+/* Media-comment callout overlay - sits in the top-right corner of the player wrapper so
+   the teacher can hear / watch the feedback without scrolling away from the recording.
+   The width is bounded so it doesn't crowd the playback area on small viewports. */
+.advgrd-annotate .advgrd-player-wrapper {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+    background: #000;
+}
+
+/* Match the rounded clip on the children so the corners don't get a black halo when the
+   browser paints the <video> or iframe before the wrapper's overflow:hidden takes effect. */
+.advgrd-annotate .advgrd-player-wrapper > .ratio,
+.advgrd-annotate .advgrd-player-wrapper > .ratio > video,
+.advgrd-annotate .advgrd-player-wrapper > .ratio > iframe {
+    border-radius: inherit;
+}
+
+.advgrd-annotate .advgrd-comment-callout {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    width: 230px;
+    height: 230px;
+    background: #000;
+    color: #fff;
+    border-radius: 50%;
+    border: 4px solid #fff;
+    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+    z-index: 30;
+    overflow: hidden;
+}
+
+.advgrd-annotate .advgrd-comment-callout-body {
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* Category chip floats at the top of the bubble as a semi-transparent overlay - sibling
+   of the callout (not a child) so it isn't clipped by the bubble's overflow:hidden, but
+   positioned inside the visible circle so the video shows through the rgba badge. */
+.advgrd-annotate .advgrd-callout-chip {
+    position: absolute;
+    top: 25px;
+    right: 85px;
+    z-index: 31;
+    font-size: 13px;
+    padding: 5px 10px;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+}
+
+/* Close button: small floating circular X in the top-right of the bubble. !important is
+   defensive against Bootstrap's <button> reset (no background, transparent border) which
+   would otherwise leave the button visually invisible despite being click-target. */
+/* Close X - sibling of the callout (not a child), so the bubble's overflow:hidden can't
+   clip it. Positioned at the top-right of the player wrapper, sitting in the bounding-
+   box corner area where the circle's curve has receded. */
+.advgrd-annotate .advgrd-callout-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #fff;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 31;
+    padding: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.advgrd-annotate .advgrd-callout-close:hover {
+    background: #000;
+    transform: scale(1.1);
+}
+
+/* Expand toggle - same chrome style as the close button, sits just below it. Video
+   comments only; lets the teacher pop the small bubble out to a 16:9 rounded rectangle
+   when fine detail (screencast feedback) needs more pixels to be legible. */
+.advgrd-annotate .advgrd-callout-expand {
+    position: absolute;
+    top: 46px;
+    right: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.7);
+    border: 2px solid #fff;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    line-height: 1;
+    cursor: pointer;
+    z-index: 31;
+    padding: 0;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+    transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.advgrd-annotate .advgrd-callout-expand:hover {
+    background: #000;
+    transform: scale(1.1);
+}
+
+/* Animated transitions so the bubble morphs between small circle and expanded rounded
+   rectangle. Applied to the base callout so collapse animates too (transition rules need
+   to be present on both states). */
+.advgrd-annotate .advgrd-comment-callout {
+    transition: width 0.25s ease, height 0.25s ease, border-radius 0.25s ease;
+}
+
+/* Expanded video callout: a 480x300 rounded rectangle so 16:9 fits naturally. The video
+   inside switches to object-fit: contain so the full frame is visible (no cropping). */
+.advgrd-annotate .advgrd-comment-callout.advgrd-expanded {
+    width: 480px;
+    height: 300px;
+    border-radius: 20px;
+}
+
+.advgrd-annotate .advgrd-comment-callout.advgrd-expanded .advgrd-callout-media {
+    object-fit: contain;
+}
+
+/* Centered playback time readout - lives just above the progress bar. */
+.advgrd-annotate .advgrd-callout-time {
+    position: absolute;
+    left: 50%;
+    bottom: 44px;
+    transform: translateX(-50%);
+    color: #fff;
+    font-family: var(--bs-font-monospace, monospace);
+    font-size: 13px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.75);
+    z-index: 4;
+    pointer-events: none;
+    white-space: nowrap;
+}
+
+/* Media fills the circle; cover crops to fit so we don't show black bars. Audio still
+   needs a defined box so the click-toggle area exists. */
+.advgrd-annotate .advgrd-comment-callout-body .advgrd-callout-media {
+    width: 100%;
+    height: 100%;
+    max-height: none;
+    object-fit: cover;
+    background: #000;
+    border-radius: 0;
+    display: block;
+}
+
+.advgrd-annotate .advgrd-comment-callout-body video.advgrd-callout-media {
+    cursor: pointer;
+}
+
+/* Centered play/pause overlay - hide while playing so the video isn't obscured. */
+.advgrd-annotate .advgrd-callout-play {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    border: 2px solid rgba(255, 255, 255, 0.85);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: opacity 0.2s ease, background 0.2s ease;
+}
+
+.advgrd-annotate .advgrd-callout-play:hover {
+    background: rgba(0, 0, 0, 0.78);
+}
+
+.advgrd-annotate .advgrd-comment-callout.advgrd-playing .advgrd-callout-play {
+    opacity: 0;
+    pointer-events: none;
+}
+
+.advgrd-annotate .advgrd-comment-callout.advgrd-playing:hover .advgrd-callout-play {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* Slim progress strip - inset enough to stay inside the circle's safe area. */
+.advgrd-annotate .advgrd-callout-progress {
+    position: absolute;
+    bottom: 24px;
+    left: 32px;
+    right: 32px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.25);
+    border-radius: 2px;
+    cursor: pointer;
+    z-index: 4;
+}
+
+.advgrd-annotate .advgrd-callout-progress-fill {
+    height: 100%;
+    background: #fff;
+    border-radius: 2px;
+    width: 0%;
+    transition: width 0.1s linear;
+    pointer-events: none;
+}
+
+/* Text-comment variant of the callout: a squircle (no max-radius of 50%) holding the
+   rendered comment body. The chip + close button + base shadow / border behaviour are
+   inherited from the media rules. */
+.advgrd-annotate .advgrd-comment-callout.advgrd-text-callout {
+    width: 280px;
+    height: auto;
+    min-height: 150px;
+    max-height: 320px;
+    border-radius: 36px;
+    background: rgba(33, 37, 41, 0.96);
+}
+
+.advgrd-annotate .advgrd-comment-callout.advgrd-text-callout .advgrd-comment-callout-body {
+    padding: 42px 22px 22px;
+    height: auto;
+    overflow-y: auto;
+    max-height: 316px;
+    color: #fff;
+}
+
+.advgrd-annotate .advgrd-comment-callout.advgrd-text-callout .advgrd-comment-callout-body p {
+    margin-bottom: 0.5rem;
+}
+
+.advgrd-annotate .advgrd-comment-callout.advgrd-text-callout .advgrd-comment-callout-body p:last-child {
+    margin-bottom: 0;
+}
+
+.advgrd-annotate .advgrd-comment-callout.advgrd-text-callout .advgrd-comment-callout-body img,
+.advgrd-annotate .advgrd-comment-callout.advgrd-text-callout .advgrd-comment-callout-body video,
+.advgrd-annotate .advgrd-comment-callout.advgrd-text-callout .advgrd-comment-callout-body audio {
+    max-width: 100%;
+}
+
+/* Audio-comment variant: squircle, narrower than the text version because the body is
+   just the audio control set rather than a block of prose. The play button + progress +
+   time display all stay inside the squircle's safe area. */
+.advgrd-annotate .advgrd-comment-callout.advgrd-audio-callout {
+    width: 280px;
+    height: 180px;
+    border-radius: 36px;
+    background: rgba(33, 37, 41, 0.96);
+}
+
+/* Tooltip edge-anchor: markers near the bar's left edge pin the tooltip's left to the
+   marker; markers near the right edge pin its right to the marker. Stops the centred
+   default from running off the side of the viewport for early- or late-comment markers. */
+.advgrd-annotate .advgrd-timeline-marker.advgrd-tooltip-anchor-left .advgrd-timeline-tooltip {
+    left: 0;
+    right: auto;
+    transform: none;
+}
+
+.advgrd-annotate .advgrd-timeline-marker.advgrd-tooltip-anchor-right .advgrd-timeline-tooltip {
+    left: auto;
+    right: 0;
+    transform: none;
+}
+
+/* Comment composition area - distinct surface like ytsubmission's so the editor reads
+   as its own region inside the activity card. */
+.advgrd-annotate .advgrd-comment-form {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 5px;
+}
+
+/* Give the rich-text editor (Atto or TinyMCE) more vertical room without forcing the
+   site setting. Atto inherits the textarea's height; TinyMCE renders an iframe sized
+   from its own config but its toolbar/footer respect this min-height. */
+.advgrd-annotate .advgrd-comment-form .editor_atto_content,
+.advgrd-annotate .advgrd-comment-form .tox-edit-area,
+.advgrd-annotate .advgrd-comment-form #advgrd-body {
+    min-height: 240px;
+}
+
+/* Smooth hover treatment on comment cards, matching ytsubmission. */
+.advgrd-annotate .advgrd-comment-item {
+    transition: box-shadow 0.2s ease, transform 0.2s ease, opacity 0.25s ease;
+}
+
+.advgrd-annotate .advgrd-comment-item:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* Fade-in for newly-added comments; fade-out for deletions. */
+.advgrd-annotate .advgrd-comment-item.advgrd-fade-in {
+    animation: advgrd-fade-in 0.4s ease;
+}
+
+.advgrd-annotate .advgrd-comment-item.advgrd-fade-out {
+    opacity: 0;
+    transform: translateX(8px);
+}
+
+@keyframes advgrd-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Rich-text body inside a comment - tighten the editor's default paragraph spacing
+   and constrain audio/video controls so they don't overflow the card. */
+.advgrd-annotate .advgrd-comment-body p:last-child {
+    margin-bottom: 0;
+}
+
+.advgrd-annotate .advgrd-comment-body audio,
+.advgrd-annotate .advgrd-comment-body video {
+    max-width: 100%;
 }

@@ -211,8 +211,12 @@ class annotations {
      */
     public static function editor_options(context_module $context): array {
         global $CFG;
+        // EDITOR_UNLIMITED_FILES is defined in lib/formslib.php (= -1). The page-rendering
+        // path loads it via the rubric mform; the AJAX service router does not, and this
+        // method is called from both paths. Hardcoding -1 avoids a conditional require()
+        // and keeps the helper context-agnostic.
         return [
-            'maxfiles'  => EDITOR_UNLIMITED_FILES,
+            'maxfiles'  => -1,
             'maxbytes'  => $CFG->maxbytes,
             'context'   => $context,
             'noclean'   => false,

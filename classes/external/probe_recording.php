@@ -69,7 +69,11 @@ class probe_recording extends external_api {
 
         $info = grader::bootstrap($params['bbbid']);
         self::validate_context($info['context']);
-        require_capability('bbbext/advgrd:grade', $info['context']);
+        // The probe just resolves the BBB recording's playback URL, which the user can
+        // already reach via the activity itself - any viewer of the activity (student or
+        // teacher) gets it, not just graders. require_capability('viewownreport') passes
+        // for both archetypes per db/access.php.
+        require_capability('bbbext/advgrd:viewownreport', $info['context']);
 
         if (!$params['refresh']) {
             $cached = $DB->get_record('bbbext_advgrd_rec_probe', ['recordingid' => $params['recordingid']]);
@@ -93,7 +97,19 @@ class probe_recording extends external_api {
             return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, 'failed', 0));
         }
 
-        $captureurl = $rec->get_remote_playback_url('capture');
+        // Different BBB builds expose the camera-only player under different playback type
+        // names. Recent ones we've seen call it 'video' (length-3 short videos), older ones
+        // call it 'capture'. Both point at the same /capture/ player HTML where the m4v
+        // lives in a <source> child. Try in that order; 'presentation' is excluded because
+        // it's the full slides+video+chat player and the m4v isn't on the top-level HTML.
+        $captureurl = null;
+        foreach (['video', 'capture'] as $type) {
+            $candidate = $rec->get_remote_playback_url($type);
+            if ($candidate) {
+                $captureurl = $candidate;
+                break;
+            }
+        }
         if (!$captureurl) {
             return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, 'iframe', 0));
         }
@@ -104,15 +120,28 @@ class probe_recording extends external_api {
             return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, 'failed', 0));
         }
 
-        // BBB's /capture/ player renders an HTML5 <video> with a direct media src - usually
-        // an .m4v on /presentation/<id>/video/webcams.m4v.
-        if (!preg_match('#<video[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']#i', $html, $matches)) {
+        // BBB's /capture/ player renders an HTML5 <video> with the media file in a
+        // child <source src="video-0.m4v" type="video/mp4"> element rather than on the
+        // <video> tag itself. Try both shapes and resolve relative URLs against the
+        // capture URL base.
+        $mediaurl = null;
+        if (preg_match('#<source[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']#i', $html, $matches)) {
+            $mediaurl = trim($matches[1]);
+        } else if (preg_match('#<video[^>]*\bsrc\s*=\s*["\']([^"\']+)["\']#i', $html, $matches)) {
+            $mediaurl = trim($matches[1]);
+        }
+        if ($mediaurl === null) {
             return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, 'iframe', 0));
         }
 
-        $mediaurl = trim($matches[1]);
         if (parse_url($mediaurl, PHP_URL_SCHEME) === null) {
-            $base = preg_replace('#/[^/]*$#', '/', $captureurl);
+            // Resolve the relative URL against the capture page URL. The capture URL itself
+            // may or may not have a trailing slash - normalise to ensure relative resolution
+            // treats it as a directory.
+            $base = $captureurl;
+            if (substr($base, -1) !== '/') {
+                $base .= '/';
+            }
             $mediaurl = $base . ltrim($mediaurl, '/');
         }
 
