@@ -59,6 +59,26 @@ class navigation {
         }
 
         $bbbid = (int) $cm->instance;
+        $canmanage = has_capability('bbbext/advgrd:manage', $context);
+        $cangrade = has_capability('bbbext/advgrd:grade', $context);
+        $canviewown = has_capability('bbbext/advgrd:viewownreport', $context);
+
+        // The Help node is shown to anyone with any of our caps, even when grading hasn't
+        // been configured yet - one of the docs' jobs is to walk a teacher through the
+        // initial setup, so gating it on a configured rubric would be backwards.
+        if ($canmanage || $cangrade || $canviewown) {
+            $modulesettingshelp = $PAGE->settingsnav->find('modulesettings', navigation_node::TYPE_SETTING);
+            if ($modulesettingshelp) {
+                $modulesettingshelp->add(
+                    get_string('nav_help', 'bbbext_advgrd'),
+                    new moodle_url('/mod/bigbluebuttonbn/extension/advgrd/pages/help.php', ['id' => $bbbid]),
+                    navigation_node::TYPE_SETTING,
+                    null,
+                    'bbbext_advgrd_help'
+                );
+            }
+        }
+
         $config = $DB->get_record('bbbext_advgrd_config', ['bigbluebuttonbnid' => $bbbid]);
         if (!$config || $config->gradingmethod === 'none') {
             return;
@@ -68,9 +88,6 @@ class navigation {
         if (!$modulesettings) {
             return;
         }
-
-        $canmanage = has_capability('bbbext/advgrd:manage', $context);
-        $cangrade = has_capability('bbbext/advgrd:grade', $context);
 
         if ($canmanage) {
             require_once($CFG->dirroot . '/grade/grading/lib.php');

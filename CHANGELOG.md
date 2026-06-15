@@ -2,6 +2,20 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.3.1] — 2026-06-15
+
+### Added
+
+- **In-product documentation page** at `pages/help.php`, reached from a new
+  *Help & documentation* entry in the BBB activity's secondary navigation
+  (visible even when advanced grading hasn't been configured yet, so the
+  setup walkthrough is accessible to first-time users). Covers eight
+  standard topics: the grading interface, advanced grading configuration,
+  included templates and their pedagogical foundations, metric mapping,
+  participation grading, group handling, what constitutes a submission,
+  and how multiple sessions accumulate. Content lives in lang strings so
+  it's translatable.
+
 ## [0.3.0] — 2026-06-14
 
 ### Added
