@@ -68,6 +68,30 @@ class overlay {
 
         $bbbinstance = instance::get_from_instanceid($bbbid);
         $recordings = recording::get_recordings_for_instance($bbbinstance);
+
+        // Personal-feedback rescue. get_recordings_for_instance() filters by the
+        // viewer's group, so in a separate-groups activity a student may not see
+        // the recording their feedback lives on (wrong group, or a groupid-0
+        // meeting) — and could see no recordings at all. Surface every recording
+        // this user has annotations on, fetched by id (persistent::get_record
+        // bypasses the group-filtered instance query), so feedback addressed to
+        // them is always reachable. Harmless for graders, who already see all.
+        $feedbackrecids = annotations::recording_ids_for_user($bbbid, $userid);
+        if (!empty($feedbackrecids)) {
+            $present = [];
+            foreach ($recordings as $rec) {
+                $present[$rec->get('recordingid')] = true;
+            }
+            foreach ($feedbackrecids as $recid) {
+                if (isset($present[$recid])) {
+                    continue;
+                }
+                $extra = recording::get_record(['bigbluebuttonbnid' => $bbbid, 'recordingid' => $recid]);
+                if ($extra) {
+                    $recordings[] = $extra;
+                }
+            }
+        }
         if (empty($recordings)) {
             return '';
         }
@@ -76,6 +100,17 @@ class overlay {
         if ($recordingidparam !== null && $recordingidparam !== '') {
             foreach ($recordings as $rec) {
                 if ($rec->get('recordingid') === $recordingidparam) {
+                    $activerecording = $rec;
+                    break;
+                }
+            }
+        }
+        // No explicit selection: prefer a recording that actually carries this
+        // user's feedback, so the default view lands on their comments rather than
+        // an empty (possibly group-mismatched) recording.
+        if (!$activerecording && !empty($feedbackrecids)) {
+            foreach ($recordings as $rec) {
+                if (in_array($rec->get('recordingid'), $feedbackrecids, true)) {
                     $activerecording = $rec;
                     break;
                 }
@@ -119,36 +154,11 @@ class overlay {
         $heading = get_string('annotate_heading', 'bbbext_advgrd');
         $out .= html_writer::tag('h3', $heading, ['class' => 'card-title']);
 
-        // Recording picker (only when there's more than one).
-        if (count($recordings) > 1) {
-            $options = [];
-            foreach ($recordings as $rec) {
-                $rid = $rec->get('recordingid');
-                $when = $rec->get('starttime')
-                    ? userdate((int) ($rec->get('starttime') / 1000), '%d %b %Y, %H:%M')
-                    : '';
-                $name = $rec->get('name') ?: $rid;
-                $options[$rid] = trim($name . ' — ' . $when, ' —');
-            }
-            $out .= html_writer::start_tag('div', ['class' => 'mb-3 d-flex align-items-center']);
-            $pickerlabel = get_string('annotate_recording_picker', 'bbbext_advgrd');
-            $out .= html_writer::tag('label', $pickerlabel, [
-                'for'   => 'advgrd-recording-picker',
-                'class' => 'me-2 fw-bold',
-            ]);
-            $out .= html_writer::select(
-                $options,
-                'recordingid',
-                $activerecordingid,
-                false,
-                [
-                    'id'          => 'advgrd-recording-picker',
-                    'data-region' => 'recording-picker',
-                    'class'       => 'form-select w-auto',
-                ]
-            );
-            $out .= html_writer::end_tag('div');
-        }
+        // NB: no recording picker here. The host page (local_unifiedgrader's
+        // preview pane) owns recording selection via its switcher pills, which
+        // reload this overlay with the chosen ?recordingid. Rendering a second
+        // selector here would be redundant and the two would fight to stay in
+        // sync — see overlay::render()'s $recordingidparam handling above.
 
         // Player wrapper (position:relative so the media-comment callout can overlay it).
         $out .= html_writer::start_tag('div', ['class' => 'advgrd-player-wrapper position-relative mb-2']);
@@ -1384,14 +1394,6 @@ require(['core/ajax', 'core/notification', 'core/templates'], function(Ajax, Not
             if (ev.target && ev.target.dataset.region === 'library-search') {
                 libraryFilter.query = (ev.target.value || '').toLowerCase();
                 applyLibraryFilter();
-            }
-        });
-
-        document.addEventListener('change', function(ev) {
-            if (ev.target && ev.target.id === 'advgrd-recording-picker') {
-                var url = new URL(window.location.href);
-                url.searchParams.set('recordingid', ev.target.value);
-                window.location.href = url.toString();
             }
         });
 

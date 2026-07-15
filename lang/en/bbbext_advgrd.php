@@ -62,7 +62,6 @@ $string['annotate_marker_media_hint'] = '🎵 click to play';
 $string['annotate_no_comments'] = 'No comments yet.';
 $string['annotate_no_playback'] = 'No playback URL is available yet for this recording. BBB may still be processing it.';
 $string['annotate_no_recordings'] = 'This BigBlueButton activity has no recordings yet.';
-$string['annotate_recording_picker'] = 'Recording';
 $string['annotate_save_failed'] = 'Could not save the comment. Try again.';
 $string['annotate_seek_unsupported'] = 'Click-to-seek is only available when the recording is played in the embedded player. In BBB iframe mode, scrub the recording manually.';
 $string['annotate_timestamp'] = 'Timestamp';

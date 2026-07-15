@@ -93,6 +93,26 @@ function bbbext_advgrd_render_overlay(int $cmid, int $userid, ?string $recording
 }
 
 /**
+ * BBB recording ids that carry annotation feedback for a given user in an activity.
+ *
+ * A public, dependency-free entry point (gated by function_exists() on the caller
+ * side, like bbbext_advgrd_render_overlay) so hosts such as local_unifiedgrader can
+ * surface a student's feedback recordings even when BBB's group filter would hide
+ * them. Returns an empty array when the activity isn't a BBB instance.
+ *
+ * @param int $cmid Course-module id of the BBB activity.
+ * @param int $userid Target (addressed) user id.
+ * @return string[] Distinct recordingid strings (possibly empty).
+ */
+function bbbext_advgrd_recording_ids_with_feedback(int $cmid, int $userid): array {
+    $cm = get_coursemodule_from_id('bigbluebuttonbn', $cmid, 0, false);
+    if (!$cm) {
+        return [];
+    }
+    return \bbbext_advgrd\local\annotations::recording_ids_for_user((int) $cm->instance, $userid);
+}
+
+/**
  * Serve files from the bbbext_advgrd/comment filearea (audio + image attached to annotation
  * bodies). Discoverable by Moodle's file_pluginfile router. Graders get any file in the
  * activity; students may only stream files attached to annotations addressed to them.

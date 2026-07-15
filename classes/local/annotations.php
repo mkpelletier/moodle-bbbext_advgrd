@@ -193,6 +193,31 @@ class annotations {
     }
 
     /**
+     * Distinct BBB recording ids that carry at least one annotation addressed to
+     * a given user in a given activity.
+     *
+     * Used to rescue a student's feedback from BBB's group-based recording
+     * visibility: in a separate-groups activity the recording a comment lives on
+     * may be hidden from the student (wrong group, or groupid 0), so hosts look up
+     * the recordings a student actually has feedback on and surface them by id
+     * regardless of the group filter.
+     *
+     * @param int $bbbid The bigbluebuttonbn instance id.
+     * @param int $userid The addressed (target) user id.
+     * @return string[] Distinct recordingid strings (may be empty).
+     */
+    public static function recording_ids_for_user(int $bbbid, int $userid): array {
+        global $DB;
+        $ids = $DB->get_fieldset_select(
+            'bbbext_advgrd_annotation',
+            'DISTINCT recordingid',
+            'bigbluebuttonbnid = :bbbid AND targetuserid = :userid',
+            ['bbbid' => $bbbid, 'userid' => $userid]
+        );
+        return array_values(array_filter($ids, fn($rid) => (string) $rid !== ''));
+    }
+
+    /**
      * Resolve the activity context for a given annotation row.
      *
      * @param \stdClass $row

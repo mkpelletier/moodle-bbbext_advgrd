@@ -166,6 +166,36 @@ final class annotations_test extends advanced_testcase {
         $this->assertStringContainsString('For target', $row->body);
     }
 
+    /**
+     * recording_ids_for_user() returns the distinct recordings a user has feedback
+     * on, scoped to that user — the lookup hosts use to rescue a student's feedback
+     * from BBB's group-based recording visibility.
+     */
+    public function test_recording_ids_for_user_returns_distinct_scoped_ids(): void {
+        $this->resetAfterTest();
+        [$bbb, $target, $grader, $context] = $this->seed();
+        $other = $this->getDataGenerator()->create_user();
+        $nofeedback = $this->getDataGenerator()->create_user();
+
+        $mk = function (string $recid, int $userid, int $ts) use ($bbb, $grader, $context) {
+            annotations::create(
+                (int) $bbb->id, $recid, $userid, (int) $grader->id, $ts,
+                '<p>c</p>', FORMAT_HTML, 'general', file_get_unused_draft_itemid(), $context
+            );
+        };
+        $mk('rec-1', (int) $target->id, 1000);
+        $mk('rec-1', (int) $target->id, 1500);   // same recording — must dedupe
+        $mk('rec-2', (int) $target->id, 3000);
+        $mk('rec-1', (int) $other->id, 2000);    // another student — must be excluded
+
+        $ids = annotations::recording_ids_for_user((int) $bbb->id, (int) $target->id);
+        sort($ids);
+        $this->assertSame(['rec-1', 'rec-2'], $ids);
+
+        // A user with no feedback gets an empty list.
+        $this->assertSame([], annotations::recording_ids_for_user((int) $bbb->id, (int) $nofeedback->id));
+    }
+
     public function test_delete_removes_row_and_files(): void {
         global $DB;
         $this->resetAfterTest();
