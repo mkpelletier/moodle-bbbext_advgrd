@@ -2,6 +2,31 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.4.0] — 2026-07-16
+
+### Fixed
+
+- **Backup & restore support**, which was missing entirely — all extension data
+  was silently dropped whenever a BigBlueButton activity was backed up, restored,
+  imported into another course, or duplicated. The parent module invokes
+  `add_subplugin_structure('bbbext', …)`, so each `bbbext_` subplugin must ship
+  its own `backup/moodle2/` classes; ours did not exist. New
+  `backup_bbbext_advgrd_subplugin` / `restore_bbbext_advgrd_subplugin` now carry:
+  - `bbbext_advgrd_config` and `bbbext_advgrd_metric_map` (always — teacher setup);
+  - `bbbext_advgrd_grade` (score + frozen evidence) and `bbbext_advgrd_annotation`
+    (recording feedback, including embedded audio/image files) when user data is
+    included;
+  - the **advanced-grading definition itself** — the rubric/guide, its criteria,
+    levels and comments, plus grading instances and per-criterion fillings. The
+    plugin registers this under its own `bbbext_advgrd` grading component, which
+    core's activity-grading backup (scoped to `mod_<modname>`) never captured, so
+    the subplugin backs it up itself. On restore, criterion links on
+    `metric_map` and the `gradinginstanceid` on each grade are remapped once the
+    definition has been recreated.
+  - Not included by design: `bbbext_advgrd_rec_probe` (a transient server-bound
+    cache) and `bbbext_advgrd_comlib` (the comment library is scoped to a user or
+    a course, not to a single activity).
+
 ## [0.3.1] — 2026-06-15
 
 ### Added
