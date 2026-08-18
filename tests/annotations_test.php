@@ -179,14 +179,22 @@ final class annotations_test extends advanced_testcase {
 
         $mk = function (string $recid, int $userid, int $ts) use ($bbb, $grader, $context) {
             annotations::create(
-                (int) $bbb->id, $recid, $userid, (int) $grader->id, $ts,
-                '<p>c</p>', FORMAT_HTML, 'general', file_get_unused_draft_itemid(), $context
+                (int) $bbb->id,
+                $recid,
+                $userid,
+                (int) $grader->id,
+                $ts,
+                '<p>c</p>',
+                FORMAT_HTML,
+                'general',
+                file_get_unused_draft_itemid(),
+                $context
             );
         };
         $mk('rec-1', (int) $target->id, 1000);
-        $mk('rec-1', (int) $target->id, 1500);   // same recording — must dedupe
+        $mk('rec-1', (int) $target->id, 1500);   // Same recording — must dedupe.
         $mk('rec-2', (int) $target->id, 3000);
-        $mk('rec-1', (int) $other->id, 2000);    // another student — must be excluded
+        $mk('rec-1', (int) $other->id, 2000);    // Another student — must be excluded.
 
         $ids = annotations::recording_ids_for_user((int) $bbb->id, (int) $target->id);
         sort($ids);
