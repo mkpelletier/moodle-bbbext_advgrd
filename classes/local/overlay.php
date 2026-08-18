@@ -135,6 +135,13 @@ class overlay {
         $fallbackurl = '';
         if (!empty($bytype)) {
             $fallbackurl = $bytype['presentation'] ?? $bytype['video'] ?? reset($bytype);
+            // Pin the URL to the recording's own group. bbb_view.php otherwise resolves
+            // the group from the viewer's sticky $SESSION active group, and a mismatch
+            // makes it report "The recording was not found." and redirect to the activity
+            // page — which then renders inside this player region instead of the video.
+            $fallbackurl = (new moodle_url($fallbackurl, [
+                'group' => (int) ($activerecording->get('groupid') ?? 0),
+            ]))->out(false);
         }
 
         $existing = annotations::list_for_review($bbbid, $activerecordingid, $userid);

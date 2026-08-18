@@ -2,6 +2,20 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.4.1] — 2026-08-18
+
+### Fixed
+
+- **The annotation player showed "The recording was not found." on grouped
+  activities.** Where the probe cannot reach a directly playable media file, the
+  player falls back to an iframe on BigBlueButton's hosted playback, via
+  `bbb_view.php`. That URL carries no group, so `bbb_view.php` takes the viewer's
+  sticky active group from `$SESSION` — whatever group they last chose from a
+  group menu in that course — and filters the instance's recordings to it. A
+  teacher whose sticky group was not the recording's got the "not found" error and
+  a redirect to the activity page, rendered inside the player region. The fallback
+  URL now pins `group` to the active recording's own group.
+
 ## [0.4.0] — 2026-07-16
 
 ### Fixed
