@@ -23,7 +23,16 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-require_once(__DIR__ . '/../../../../../../lib/behat/behat_base.php');
+// A __DIR__-relative require only works for a plugin sitting inside the Moodle tree: when
+// the plugin directory is a symlink, __DIR__ is the real path and the climb lands outside
+// dirroot. Behat resolves the core contexts first, so the parent class is normally already
+// loaded by this point; fall back only if it is not.
+if (!class_exists('behat_base')) {
+    $behatbase = isset($GLOBALS['CFG']->dirroot)
+        ? $GLOBALS['CFG']->dirroot . '/lib/behat/behat_base.php'
+        : __DIR__ . '/../../../../../../lib/behat/behat_base.php';
+    require_once($behatbase);
+}
 
 use Behat\Gherkin\Node\TableNode;
 use bbbext_advgrd\local\grader;
