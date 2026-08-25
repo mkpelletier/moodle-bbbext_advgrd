@@ -237,5 +237,25 @@ function xmldb_bbbext_advgrd_upgrade(int $oldversion): bool {
         upgrade_plugin_savepoint(true, 2026061210, 'bbbext', 'advgrd');
     }
 
+    if ($oldversion < 2026082500) {
+        // Recording media is no longer fetched by the browser straight from the BBB host:
+        // BBB gates the raw media files behind an authorisation cookie that only its
+        // playback page sets, and the probe's server-side curl kept that cookie to itself,
+        // so the <video> element 403'd and rendered a black box. pages/play.php now proxies
+        // the media, replaying the /capture/ handshake server-side to earn the cookie, so we
+        // need to remember which capture page each media URL came from.
+        $probe = new xmldb_table('bbbext_advgrd_rec_probe');
+        $captureurl = new xmldb_field('captureurl', XMLDB_TYPE_TEXT, null, null, null, null, null, 'mediaurl');
+        if (!$dbman->field_exists($probe, $captureurl)) {
+            $dbman->add_field($probe, $captureurl);
+        }
+
+        // Every cached row predates the new column, so no existing 'ok' row can be streamed.
+        // Clear the table wholesale and let the next page load re-probe.
+        $DB->delete_records('bbbext_advgrd_rec_probe');
+
+        upgrade_plugin_savepoint(true, 2026082500, 'bbbext', 'advgrd');
+    }
+
     return true;
 }

@@ -547,6 +547,27 @@ require(['core/ajax', 'core/notification', 'core/templates'], function(Ajax, Not
             }
         });
         v.addEventListener('timeupdate', updatePlayhead);
+        // A probe that succeeded does not guarantee a playable stream - the proxy can 404 on
+        // a stale probe row, or BBB can refuse the media outright. Without this the element
+        // just sits there as a black box with no clue what went wrong; degrade to BBB's own
+        // player instead, which needs no timeline support to at least show the recording.
+        v.addEventListener('error', function() {
+            // Only rescue a player that never got going. An error after metadata loaded is a
+            // mid-stream blip, and tearing the player down would throw away the marker's
+            // position for no gain.
+            // ownPlayer goes false once we have already swapped in the iframe; a detached
+            // <video> can fire error again and must not stack a second notice.
+            if (v.readyState > 0 || !ownPlayer) {
+                return;
+            }
+            videoEl = null;
+            videoDuration = 0;
+            if (FALLBACK_URL) {
+                mountIframe(FALLBACK_URL);
+            } else {
+                showUnavailable();
+            }
+        });
     }
 
     function mountIframe(src) {

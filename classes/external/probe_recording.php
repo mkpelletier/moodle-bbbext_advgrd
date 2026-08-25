@@ -94,7 +94,7 @@ class probe_recording extends external_api {
             }
         }
         if (!$rec) {
-            return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, 'failed', 0));
+            return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, null, 'failed', 0));
         }
 
         // Different BBB builds expose the camera-only player under different playback type
@@ -111,13 +111,13 @@ class probe_recording extends external_api {
             }
         }
         if (!$captureurl) {
-            return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, 'iframe', 0));
+            return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, null, 'iframe', 0));
         }
 
         $curl = new \curl();
         $html = $curl->get($captureurl);
         if ($curl->get_errno() || (int) ($curl->info['http_code'] ?? 0) !== 200) {
-            return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, 'failed', 0));
+            return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, null, 'failed', 0));
         }
 
         // BBB's /capture/ player renders an HTML5 <video> with the media file in a
@@ -131,7 +131,7 @@ class probe_recording extends external_api {
             $mediaurl = trim($matches[1]);
         }
         if ($mediaurl === null) {
-            return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, 'iframe', 0));
+            return self::shape(self::persist($params['bbbid'], $params['recordingid'], null, null, 'iframe', 0));
         }
 
         if (parse_url($mediaurl, PHP_URL_SCHEME) === null) {
@@ -154,6 +154,7 @@ class probe_recording extends external_api {
             $params['bbbid'],
             $params['recordingid'],
             $mediaurl,
+            $captureurl,
             'ok',
             $durationms
         ));
@@ -165,6 +166,7 @@ class probe_recording extends external_api {
      * @param int         $bbbid
      * @param string      $recordingid
      * @param string|null $mediaurl
+     * @param string|null $captureurl
      * @param string      $status
      * @param int         $durationms
      * @return \stdClass
@@ -173,6 +175,7 @@ class probe_recording extends external_api {
         int $bbbid,
         string $recordingid,
         ?string $mediaurl,
+        ?string $captureurl,
         string $status,
         int $durationms
     ): \stdClass {
@@ -181,25 +184,47 @@ class probe_recording extends external_api {
             'bigbluebuttonbnid' => $bbbid,
             'recordingid'       => $recordingid,
             'mediaurl'          => $mediaurl,
+            'captureurl'        => $captureurl,
             'probestatus'       => $status,
             'durationms'        => $durationms,
             'iframeurl'         => null,
             'timeprobed'        => time(),
         ];
-        $row->id = $DB->insert_record('bbbext_advgrd_rec_probe', $row);
+        // The recordingid column is uniquely indexed. Two grading tabs opened at once both
+        // miss the cache and both probe, so tolerate the loser of that race rather than
+        // throwing a duplicate-key exception into an otherwise fine page load.
+        if ($existing = $DB->get_record('bbbext_advgrd_rec_probe', ['recordingid' => $recordingid], 'id')) {
+            $row->id = $existing->id;
+            $DB->update_record('bbbext_advgrd_rec_probe', $row);
+        } else {
+            $row->id = $DB->insert_record('bbbext_advgrd_rec_probe', $row);
+        }
         return $row;
     }
 
     /**
      * Shape a probe row for the JSON response.
      *
+     * The scraped BBB media URL is deliberately NOT returned. BBB gates its raw recording
+     * files behind an authorisation cookie that only its own playback page sets, and this
+     * probe earns that cookie server-side in a throwaway curl jar - the browser has none,
+     * so a <video> pointed straight at the BBB host 403s and renders a black box. The
+     * client gets a same-origin Moodle URL instead and pages/play.php proxies the bytes.
+     *
      * @param \stdClass $row
      * @return array
      */
     protected static function shape(\stdClass $row): array {
+        $mediaurl = '';
+        if ((string) $row->probestatus === 'ok' && !empty($row->mediaurl)) {
+            $mediaurl = (new \moodle_url('/mod/bigbluebuttonbn/extension/advgrd/pages/play.php', [
+                'id'          => (int) $row->bigbluebuttonbnid,
+                'recordingid' => (string) $row->recordingid,
+            ]))->out(false);
+        }
         return [
             'status'     => (string) $row->probestatus,
-            'mediaurl'   => $row->mediaurl ?? '',
+            'mediaurl'   => $mediaurl,
             'durationms' => (int) ($row->durationms ?? 0),
         ];
     }

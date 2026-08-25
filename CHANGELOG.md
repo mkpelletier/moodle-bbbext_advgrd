@@ -2,6 +2,40 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.4.2] — 2026-08-25
+
+### Fixed
+
+- **Recordings rendered as a black box in the annotation player until the marker
+  had first opened the recording from the BigBlueButton activity.** BBB gates its
+  raw recording files behind an authorisation cookie that only its own playback
+  page sets. The probe performed that handshake server-side with `curl`, so the
+  cookie landed in a throwaway jar on the Moodle server while the browser —
+  which was being pointed straight at the BBB host by `mountVideo()` — had none,
+  and its request for the media was refused. Opening the recording from the
+  activity is a top-level navigation, which set the cookie first-party and made
+  every later request succeed, hence the "works once I launch it manually"
+  symptom. Recording media is now proxied through `pages/play.php`, which replays
+  the handshake server-side, caches the cookie per user and recording, and streams
+  the bytes back from Moodle's own origin. HTTP byte ranges are forwarded in both
+  directions so timeline click-to-seek keeps working.
+- **A player that failed to load stayed a black box with no explanation.** The
+  `<video>` element had no `error` handler, so a probe that succeeded followed by
+  a stream that did not left the marker with nothing to look at and no fallback —
+  even though the iframe path to BBB's hosted player was right there. It now
+  degrades to that player, or to the "not available" notice when there is no
+  playback URL at all.
+
+### Changed
+
+- `bbbext_advgrd_probe_recording` no longer returns the BBB media URL to the
+  browser; it returns the `pages/play.php` proxy URL instead. The scraped URL is
+  server-side only.
+- New `captureurl` column on `bbbext_advgrd_rec_probe`, recording which BBB
+  playback page each media URL was scraped from so the proxy can repeat the
+  handshake. The upgrade clears the probe cache, since no existing row carries
+  one; the next visit to each recording re-probes.
+
 ## [0.4.1] — 2026-08-18
 
 ### Fixed

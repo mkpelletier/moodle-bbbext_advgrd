@@ -109,7 +109,8 @@
                 <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
                 <FIELD NAME="bigbluebuttonbnid" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="false"/>
                 <FIELD NAME="recordingid" TYPE="char" LENGTH="255" NOTNULL="true" SEQUENCE="false"/>
-                <FIELD NAME="mediaurl" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Directly playable media URL when probestatus=ok."/>
+                <FIELD NAME="mediaurl" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="Directly playable media URL when probestatus=ok. Server-side only - never handed to the browser; pages/play.php proxies it."/>
+                <FIELD NAME="captureurl" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="BBB /capture/ playback page the mediaurl was scraped from. Re-fetched by pages/play.php to obtain the recording authorisation cookie before streaming."/>
                 <FIELD NAME="probestatus" TYPE="char" LENGTH="10" NOTNULL="true" DEFAULT="failed" SEQUENCE="false" COMMENT="ok|iframe|failed."/>
                 <FIELD NAME="durationms" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" SEQUENCE="false"/>
                 <FIELD NAME="iframeurl" TYPE="text" NOTNULL="false" SEQUENCE="false" COMMENT="BBB-hosted iframe URL when probestatus=iframe."/>
