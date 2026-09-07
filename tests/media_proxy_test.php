@@ -114,4 +114,107 @@ final class media_proxy_test extends advanced_testcase {
             'hostless url' => [$row(['mediaurl' => '/presentation/x/video-0.m4v']), false],
         ];
     }
+
+    /**
+     * The stream reads its status out of the curl wrapper's response array, where the status
+     * line is stored like any other header, keyed by its first token.
+     *
+     * @dataProvider status_provider
+     * @param array $response
+     * @param int   $expected
+     */
+    public function test_response_status(array $response, int $expected): void {
+        $this->assertSame($expected, self::call('response_status', [$response]));
+    }
+
+    /**
+     * Response arrays as \curl::formatHeader() builds them, and the status they encode.
+     *
+     * @return array[]
+     */
+    public static function status_provider(): array {
+        return [
+            'ok' => [['HTTP/1.1' => '200 OK', 'Content-Type' => 'video/mp4'], 200],
+            'partial content' => [['HTTP/1.1' => '206 Partial Content'], 206],
+            'http/2' => [['HTTP/2' => '403 '], 403],
+            'forbidden' => [['HTTP/1.1' => '403 Forbidden'], 403],
+            'no status line' => [['Content-Type' => 'video/mp4'], 0],
+            'blocked url leaves nothing' => [[], 0],
+            'repeated status line keeps the last' => [['HTTP/1.1' => ['302 Found', '200 OK']], 200],
+        ];
+    }
+
+    /**
+     * Headers are lower-cased for send_headers(), and the status line is not one of them.
+     */
+    public function test_response_headers_lowercases_and_drops_the_status_line(): void {
+        $headers = self::call('response_headers', [[
+            'HTTP/1.1'       => '206 Partial Content',
+            'Content-Type'   => 'video/mp4',
+            'Accept-Ranges'  => 'bytes',
+            'Content-Range'  => 'bytes 0-1023/2048',
+            'Set-Cookie'     => ['a=1', 'b=2'],
+        ]]);
+
+        $this->assertSame([
+            'content-type'  => 'video/mp4',
+            'accept-ranges' => 'bytes',
+            'content-range' => 'bytes 0-1023/2048',
+            'set-cookie'    => 'b=2',
+        ], $headers);
+        $this->assertArrayNotHasKey('http/1.1', $headers);
+    }
+
+    /**
+     * Only a well-formed byte range is forwarded upstream; the header is client-controlled.
+     *
+     * @dataProvider range_provider
+     * @param string      $header
+     * @param string|null $expected
+     */
+    public function test_client_range($header, $expected): void {
+        $original = $_SERVER['HTTP_RANGE'] ?? null;
+        $_SERVER['HTTP_RANGE'] = $header;
+        try {
+            $this->assertSame($expected, self::call('client_range', []));
+        } finally {
+            if ($original === null) {
+                unset($_SERVER['HTTP_RANGE']);
+            } else {
+                $_SERVER['HTTP_RANGE'] = $original;
+            }
+        }
+    }
+
+    /**
+     * Range header values and what the proxy forwards for each.
+     *
+     * @return array[]
+     */
+    public static function range_provider(): array {
+        return [
+            'open ended' => ['bytes=0-', 'bytes=0-'],
+            'closed' => ['bytes=1024-2047', 'bytes=1024-2047'],
+            'suffix' => ['bytes=-500', 'bytes=-500'],
+            'multipart' => ['bytes=0-99, 200-299', 'bytes=0-99, 200-299'],
+            'padded' => ['  bytes=0-  ', 'bytes=0-'],
+            'absent' => ['', null],
+            'other unit' => ['seconds=0-10', null],
+            'garbage' => ['bytes=abc', null],
+            'header injection attempt' => ["bytes=0-\r\nX-Evil: 1", null],
+        ];
+    }
+
+    /**
+     * Reach a protected static helper.
+     *
+     * @param string $method
+     * @param array  $args
+     * @return mixed
+     */
+    private static function call(string $method, array $args) {
+        $reflection = new \ReflectionMethod(media_proxy::class, $method);
+        $reflection->setAccessible(true);
+        return $reflection->invokeArgs(null, $args);
+    }
 }

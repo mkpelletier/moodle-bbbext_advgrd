@@ -33,6 +33,11 @@ namespace bbbext_advgrd\local;
  * silent black box. This class performs the handshake server-side, caches the resulting
  * cookie per user and recording, and relays the bytes from Moodle's own origin.
  *
+ * Both legs go through Moodle's \curl wrapper rather than the cURL extension directly, so the
+ * site's proxy configuration and URL blocklist apply to them the same way they apply to every
+ * other outbound request Moodle makes. See {@see self::make_curl()} for what that buys and what
+ * it costs.
+ *
  * Everything here is static and side-effecting on the HTTP response; pages/play.php is the
  * only caller, and it exists solely to be that caller's implementation. It lives in a class
  * rather than as functions in the page so that nothing lands in the global namespace.
@@ -86,13 +91,9 @@ class media_proxy {
         if ($force && file_exists($jar)) {
             @unlink($jar);
         }
-        $ch = curl_init($captureurl);
-        curl_setopt_array($ch, self::curl_defaults($jar) + [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => 30,
-        ]);
-        curl_exec($ch);
-        curl_close($ch);
+        $curl = self::make_curl($jar);
+        $curl->setopt(['CURLOPT_TIMEOUT' => 30]);
+        $curl->get($captureurl);
         // A failed handshake is not fatal on its own - unprotected recordings need no cookie at
         // all. Let the media request be the judge.
     }
@@ -109,65 +110,56 @@ class media_proxy {
      */
     public static function stream(string $mediaurl, string $jar): int {
         $state = (object) [
-            'status'  => 0,
-            'headers' => [],
-            'sent'    => false,
+            'status' => 0,
+            'sent'   => false,
         ];
 
-        $ch = curl_init($mediaurl);
-        $options = self::curl_defaults($jar) + [
-            // No overall timeout: a full recording legitimately takes as long as it takes.
-            CURLOPT_TIMEOUT        => 0,
-            CURLOPT_HEADERFUNCTION => function ($ch, $line) use ($state) {
-                $trimmed = trim($line);
-                if (stripos($trimmed, 'HTTP/') === 0) {
-                    // A new status line means a redirect hop; the headers we collected belong to
-                    // the hop we are leaving, so start the set again.
-                    $state->status = (int) (explode(' ', $trimmed)[1] ?? 0);
-                    $state->headers = [];
-                    return strlen($line);
-                }
-                $split = strpos($trimmed, ':');
-                if ($split !== false) {
-                    $name = strtolower(trim(substr($trimmed, 0, $split)));
-                    $state->headers[$name] = trim(substr($trimmed, $split + 1));
-                }
-                return strlen($line);
-            },
-            CURLOPT_WRITEFUNCTION  => function ($ch, $chunk) use ($state) {
+        $curl = self::make_curl($jar);
+        // No overall timeout: a full recording legitimately takes as long as it takes.
+        $curl->setopt(['CURLOPT_TIMEOUT' => 0]);
+
+        if (($range = self::client_range()) !== null) {
+            // Seeking in the overlay's timeline is a Range request. Pass it through so BBB
+            // serves the 206 rather than us buffering a whole lecture to reach one offset.
+            // setHeader() strips CR/LF, so this client-controlled value cannot smuggle a
+            // second header into the upstream request.
+            $curl->setHeader('Range: ' . $range);
+        }
+
+        $curl->setopt(['CURLOPT_WRITEFUNCTION' => function ($ch, $chunk) use ($state, $curl) {
+            if (!$state->sent) {
+                // The wrapper owns CURLOPT_HEADERFUNCTION, so read this hop's status and
+                // headers from its public response state instead. cURL delivers every header
+                // of a hop before that hop's first body byte, and the wrapper clears
+                // ->response when a new hop's headers start, so this is always the current hop.
+                $state->status = self::response_status($curl->response);
                 if ($state->status < 200 || $state->status >= 300) {
-                    // Swallow the error body: the caller may still retry, and half an upstream
-                    // error page in front of the real media would corrupt the retry.
+                    // Swallow the error or redirect body: the wrapper may still follow this hop,
+                    // and the caller may still retry. Half an upstream error page in front of
+                    // the real media would corrupt either.
                     return strlen($chunk);
                 }
-                if (!$state->sent) {
-                    self::send_headers($state->status, $state->headers);
-                    $state->sent = true;
-                }
-                echo $chunk;
-                flush();
-                return strlen($chunk);
-            },
-        ];
-        if (!empty($_SERVER['HTTP_RANGE'])) {
-            // Seeking in the overlay's timeline is a Range request. Pass it straight through so
-            // BBB serves the 206 rather than us buffering a whole lecture to reach one offset.
-            $options[CURLOPT_HTTPHEADER] = ['Range: ' . $_SERVER['HTTP_RANGE']];
-        }
-        curl_setopt_array($ch, $options);
-        curl_exec($ch);
-        $errno = curl_errno($ch);
-        curl_close($ch);
+                self::send_headers($state->status, self::response_headers($curl->response));
+                $state->sent = true;
+            }
+            echo $chunk;
+            flush();
+            return strlen($chunk);
+        }]);
 
-        if ($errno && !$state->sent) {
+        $curl->get($mediaurl);
+
+        if ($curl->get_errno() && !$state->sent) {
             return 0;
         }
-        if ($state->status >= 200 && $state->status < 300 && !$state->sent) {
+        // A blocked URL never reaches the network, and leaves info empty - hence the 0 default.
+        $status = $state->sent ? $state->status : (int) ($curl->info['http_code'] ?? 0);
+        if ($status >= 200 && $status < 300 && !$state->sent) {
             // A legitimately empty body (a zero-length range, say) still needs its headers.
-            self::send_headers($state->status, $state->headers);
+            self::send_headers($status, self::response_headers($curl->response));
             $state->sent = true;
         }
-        return $state->status;
+        return $status;
     }
 
     /**
@@ -205,23 +197,86 @@ class media_proxy {
     }
 
     /**
-     * Shared curl options for both legs, so the handshake and the stream share a cookie jar
-     * and the same protocol restrictions.
+     * A Moodle curl client for one leg, bound to the cookie jar both legs share.
      *
-     * @param string $jar
-     * @return array
+     * Everything this used to configure by hand the wrapper already does, which is the point of
+     * going through it: it applies $CFG->proxyhost and friends, pins both the request and every
+     * redirect hop to HTTP/HTTPS, sends the moodlebot user agent, supplies the CA bundle, and
+     * runs each URL - including each redirect target - past \core\files\curl_security_helper.
+     * The security helper is deliberately left on: a site that has blocked a host range has
+     * done so on purpose, and this endpoint fetches a URL out of the database and streams the
+     * response back, which is exactly the shape the helper exists to constrain.
+     *
+     * @param string $jar Cookie jar path, used for both CURLOPT_COOKIEFILE and CURLOPT_COOKIEJAR.
+     * @return \curl
      */
-    protected static function curl_defaults(string $jar): array {
-        return [
-            CURLOPT_COOKIEFILE      => $jar,
-            CURLOPT_COOKIEJAR       => $jar,
-            CURLOPT_FOLLOWLOCATION  => true,
-            CURLOPT_MAXREDIRS       => 5,
-            CURLOPT_PROTOCOLS       => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTP | CURLPROTO_HTTPS,
-            CURLOPT_CONNECTTIMEOUT  => 10,
-            CURLOPT_USERAGENT       => \core_useragent::get_moodlebot_useragent(),
-        ];
+    protected static function make_curl(string $jar): \curl {
+        global $CFG;
+        // The curl wrapper lives in filelib, which lib/setup.php only loads under some
+        // configurations, so an autoloaded class cannot assume the page pulled it in.
+        require_once($CFG->libdir . '/filelib.php');
+
+        $curl = new \curl(['cookie' => $jar]);
+        $curl->setopt([
+            'CURLOPT_CONNECTTIMEOUT' => 10,
+            'CURLOPT_MAXREDIRS'      => 5,
+        ]);
+        return $curl;
+    }
+
+    /**
+     * The client's Range header, if it is one we are willing to forward.
+     *
+     * @return string|null
+     */
+    protected static function client_range(): ?string {
+        $range = trim((string) ($_SERVER['HTTP_RANGE'] ?? ''));
+        if ($range === '') {
+            return null;
+        }
+        // Only a well-formed byte range goes upstream. The value is client-controlled and ends
+        // up in a request header we make; anything else is not a range BBB could serve anyway.
+        if (!preg_match('/^bytes=\d*-\d*(\s*,\s*\d*-\d*)*$/', $range)) {
+            return null;
+        }
+        return $range;
+    }
+
+    /**
+     * Status code of the hop held in a Moodle curl wrapper's response state.
+     *
+     * The wrapper stores the status line like any other header, keyed by its first token
+     * ('HTTP/1.1' => '206 Partial Content').
+     *
+     * @param array $response The wrapper's public $response array.
+     * @return int Zero when no status line is present.
+     */
+    protected static function response_status(array $response): int {
+        foreach ($response as $key => $value) {
+            if (stripos((string) $key, 'HTTP/') === 0) {
+                return (int) trim((string) (is_array($value) ? end($value) : $value));
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * Response headers from a Moodle curl wrapper's response state, lower-cased and flattened.
+     *
+     * @param array $response The wrapper's public $response array.
+     * @return array Lower-cased header name => value, status line excluded.
+     */
+    protected static function response_headers(array $response): array {
+        $headers = [];
+        foreach ($response as $key => $value) {
+            $name = strtolower(trim((string) $key));
+            if ($name === '' || strpos($name, 'http/') === 0) {
+                continue;
+            }
+            // A repeated header arrives as an array; the last value is the one that applies.
+            $headers[$name] = trim((string) (is_array($value) ? end($value) : $value));
+        }
+        return $headers;
     }
 
     /**

@@ -57,6 +57,23 @@ All notable changes to `bbbext_advgrd` are documented here.
   `media_proxy::probe_is_proxyable()`, and the cookie-jar age check is
   `media_proxy::jar_is_stale()`. Both are covered by the new `media_proxy_test.php`, so the
   open-proxy pin is asserted rather than merely commented.
+- **The media proxy goes through Moodle's `\curl` wrapper instead of calling `curl_init()`
+  directly.** Both legs — the `/capture/` cookie handshake and the byte-range media stream —
+  were driving the cURL extension by hand, so a site's `$CFG->proxyhost` settings and its
+  `curlsecurityblockedhosts` / `curlsecurityallowedport` blocklist did not apply to them, unlike
+  every other outbound request Moodle makes (the recording probe already used the wrapper). Both
+  now build their client through `media_proxy::make_curl()`. Most of the old hand-rolled option
+  set is simply gone: the wrapper already pins the request *and every redirect hop* to
+  HTTP/HTTPS, sends the moodlebot user agent, supplies the CA bundle, and re-checks each
+  redirect target against the blocklist rather than letting cURL follow the chain on its own.
+  Resolves #4.
+
+  Two behaviours came along with the move. The client's `Range` header is now validated against
+  a byte-range grammar before being forwarded upstream, where previously `$_SERVER['HTTP_RANGE']`
+  was passed through verbatim. And because the wrapper owns `CURLOPT_HEADERFUNCTION`, the
+  streamer reads each hop's status and headers from the wrapper's response state; that parsing
+  is covered by new cases in `media_proxy_test.php`, alongside the `Range` grammar.
+
 - `classes/privacy/provider.php` anonymises rater references with
   `$DB->set_field_select()` instead of two hand-written `UPDATE` statements. The
   `execute()` calls that remain in `db/upgrade.php` are correlated backfills with no
