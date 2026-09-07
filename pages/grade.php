@@ -25,11 +25,11 @@
 
 // Bootstrap moodle: use SCRIPT_FILENAME instead of __DIR__ so the page works when the plugin
 // source is symlinked from outside the moodle tree (a common dev workflow). String ops only -
-// any '..' path resolution would traverse the dev symlink and miss config.php.
+// any '..' path resolution would traverse the dev symlink and miss config.php. Kept inline
+// rather than in a named variable so the page adds nothing to the global scope config.php
+// is about to populate.
 // phpcs:disable moodle.Files.MoodleInternal.MoodleInternalGlobalState
-$advgrdpathparts = explode('/', $_SERVER['SCRIPT_FILENAME'] ?? __FILE__);
-array_splice($advgrdpathparts, -6);
-require(implode('/', $advgrdpathparts) . '/config.php');
+require(implode('/', array_slice(explode('/', $_SERVER['SCRIPT_FILENAME'] ?? __FILE__), 0, -6)) . '/config.php');
 // phpcs:enable moodle.Files.MoodleInternal.MoodleInternalGlobalState
 
 use bbbext_advgrd\form\grade_form;

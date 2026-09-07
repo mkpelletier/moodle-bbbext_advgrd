@@ -22,6 +22,27 @@ All notable changes to `bbbext_advgrd` are documented here.
   warning on every call under developer debugging. Both call sites now select the
   full name-field set via `\core_user\fields::get_name_fields()`.
 
+### Changed
+
+- **No plugin code is left in PHP's global namespace.** `pages/play.php` declared six
+  `advgrd_play_*` functions and an `ADVGRD_COOKIE_TTL` constant at global scope. The
+  `advgrd_` prefix is not frankenstyle — the component is `bbbext_advgrd` — so any other
+  plugin (or core) defining a function of the same name would have caused a fatal
+  redeclaration. Rather than only re-prefixing them, the whole media-proxy implementation
+  moved into the new `bbbext_advgrd\local\media_proxy` class, which puts it behind the
+  component's own namespace where a collision is impossible, and leaves `pages/play.php` as
+  a bare entry point. Behaviour is unchanged: the same handshake, the same per-user cookie
+  jar, the same byte-range forwarding. Resolves #2.
+- The `$advgrdpathparts` scratch variable each page used to locate `config.php` is gone;
+  the path is now computed inline with `array_slice()`. It existed for three lines but lived
+  in the global scope `config.php` is about to populate, which is the same collision risk in
+  a smaller form.
+- Two guards that `pages/play.php` had inline — the "is there a usable probe row" check and
+  the same-host/scheme pin that stops the endpoint becoming an open proxy — are now
+  `media_proxy::probe_is_proxyable()`, and the cookie-jar age check is
+  `media_proxy::jar_is_stale()`. Both are covered by the new `media_proxy_test.php`, so the
+  open-proxy pin is asserted rather than merely commented.
+
 ## [0.4.2] — 2026-08-25
 
 ### Fixed
