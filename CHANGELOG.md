@@ -31,6 +31,11 @@ All notable changes to `bbbext_advgrd` are documented here.
   passed that partial record to `fullname()`, which emitted a `debugging()`
   warning on every call under developer debugging. Both call sites now select the
   full name-field set via `\core_user\fields::get_name_fields()`.
+- **`media_proxy` could have fatalled with "Class \"curl\" not found".** The curl wrapper
+  lives in `lib/filelib.php`, which `lib/setup.php` loads only under some configurations, so
+  an autoloaded class cannot assume the requesting page pulled it in — and `pages/play.php`
+  bootstraps Moodle with a bare `require` of `config.php`. `make_curl()` now requires filelib
+  itself before constructing the client.
 - **The two correlated backfills in `db/upgrade.php` aliased the table they were
   updating** (`UPDATE {table} m SET ... WHERE ... m.configid`). SQL Server rejects
   that form — it spells the same statement `UPDATE <alias> ... FROM` — so the
