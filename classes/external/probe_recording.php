@@ -46,7 +46,10 @@ class probe_recording extends external_api {
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'bbbid'       => new external_value(PARAM_INT, 'BBB instance id'),
-            'recordingid' => new external_value(PARAM_RAW_TRIMMED, 'BBB recording id'),
+            // A BBB recordID is <internal-meeting-sha1>-<epoch-millis>, so PARAM_ALPHANUMEXT
+            // ([a-zA-Z0-9_-]) accepts every legitimate id while keeping anything else out of
+            // the probe cache key and the play.php URL built from it in shape().
+            'recordingid' => new external_value(PARAM_ALPHANUMEXT, 'BBB recording id'),
             'refresh'     => new external_value(PARAM_BOOL, 'Force re-probe', VALUE_DEFAULT, false),
         ]);
     }
@@ -237,7 +240,10 @@ class probe_recording extends external_api {
     public static function execute_returns(): external_single_structure {
         return new external_single_structure([
             'status'     => new external_value(PARAM_ALPHA, 'ok | iframe | failed'),
-            'mediaurl'   => new external_value(PARAM_RAW, 'Direct media URL when status=ok'),
+            // PARAM_URL, not PARAM_RAW: the client assigns this straight to <video>.src, so the
+            // type has to be one that rejects a javascript: payload. shape() only ever builds a
+            // local play.php moodle_url, and '' (status != ok) survives the clean unchanged.
+            'mediaurl'   => new external_value(PARAM_URL, 'Same-origin play.php URL when status=ok'),
             'durationms' => new external_value(PARAM_INT, 'Duration in ms if detected'),
         ]);
     }

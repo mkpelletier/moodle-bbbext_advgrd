@@ -43,7 +43,8 @@ class list_annotations extends external_api {
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'bbbid'        => new \core_external\external_value(PARAM_INT, 'BBB instance id'),
-            'recordingid'  => new \core_external\external_value(PARAM_RAW_TRIMMED, 'BBB recording id'),
+            // BBB recordID shape is <internal-meeting-sha1>-<epoch-millis>, all of it [a-zA-Z0-9_-].
+            'recordingid'  => new \core_external\external_value(PARAM_ALPHANUMEXT, 'BBB recording id'),
             'targetuserid' => new \core_external\external_value(PARAM_INT, 'Addressed student id'),
         ]);
     }

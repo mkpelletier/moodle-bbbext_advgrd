@@ -47,7 +47,9 @@ class save_library_comment extends external_api {
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'bbbid'       => new external_value(PARAM_INT, 'BBB instance id; gates access via the activity context'),
-            'commenttext' => new external_value(PARAM_RAW, 'Body HTML to save'),
+            // PARAM_RAW is deliberate: editor HTML, which a narrower type would destroy.
+            // comment_library::save() runs clean_text() before the value reaches the database.
+            'commenttext' => new external_value(PARAM_RAW, 'Body HTML to save; cleaned via clean_text before storage'),
             'commenttype' => new external_value(PARAM_ALPHA, 'Category key'),
             'scope'       => new external_value(PARAM_ALPHA, "'personal' or 'course'"),
             'itemid'      => new external_value(PARAM_INT, 'Existing library entry id; 0 to insert', VALUE_DEFAULT, 0),
@@ -106,7 +108,7 @@ class save_library_comment extends external_api {
         return new external_single_structure([
             'id'           => new external_value(PARAM_INT, 'Library entry id'),
             'commenttype'  => new external_value(PARAM_ALPHA, 'Category key'),
-            'commenttext'  => new external_value(PARAM_RAW, 'Stored body HTML'),
+            'commenttext'  => new external_value(PARAM_RAW, 'Stored body HTML, cleaned via clean_text'),
             'isowner'      => new external_value(PARAM_BOOL, 'Always true for the save returnshape'),
             'timemodified' => new external_value(PARAM_INT, 'Modification timestamp'),
         ]);

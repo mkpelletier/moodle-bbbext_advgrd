@@ -51,10 +51,15 @@ function xmldb_bbbext_advgrd_upgrade(int $oldversion): bool {
         );
         if (!$dbman->field_exists($maptable, $field)) {
             $dbman->add_field($maptable, $field);
+            // A correlated backfill has no specialised DML equivalent, so execute() stays here.
+            // The updated table is named in full rather than aliased: `UPDATE <table> <alias>`
+            // is rejected by SQL Server, which spells the same statement `UPDATE <alias> ... FROM`.
             $DB->execute("
-                UPDATE {bbbext_advgrd_metric_map} m
+                UPDATE {bbbext_advgrd_metric_map}
                    SET bigbluebuttonbnid = (
-                       SELECT c.bigbluebuttonbnid FROM {bbbext_advgrd_config} c WHERE c.id = m.configid
+                       SELECT c.bigbluebuttonbnid
+                         FROM {bbbext_advgrd_config} c
+                        WHERE c.id = {bbbext_advgrd_metric_map}.configid
                    )
             ");
             $dbman->change_field_notnull(
@@ -93,10 +98,13 @@ function xmldb_bbbext_advgrd_upgrade(int $oldversion): bool {
         );
         if (!$dbman->field_exists($gradetable, $field)) {
             $dbman->add_field($gradetable, $field);
+            // Same correlated backfill, same reason for the unaliased target table as above.
             $DB->execute("
-                UPDATE {bbbext_advgrd_grade} g
+                UPDATE {bbbext_advgrd_grade}
                    SET bigbluebuttonbnid = (
-                       SELECT c.bigbluebuttonbnid FROM {bbbext_advgrd_config} c WHERE c.id = g.configid
+                       SELECT c.bigbluebuttonbnid
+                         FROM {bbbext_advgrd_config} c
+                        WHERE c.id = {bbbext_advgrd_grade}.configid
                    )
             ");
             $dbman->change_field_notnull(

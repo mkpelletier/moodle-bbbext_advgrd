@@ -25,9 +25,7 @@
  */
 
 // phpcs:disable moodle.Files.MoodleInternal.MoodleInternalGlobalState
-$advgrdpathparts = explode('/', $_SERVER['SCRIPT_FILENAME'] ?? __FILE__);
-array_splice($advgrdpathparts, -6);
-require(implode('/', $advgrdpathparts) . '/config.php');
+require(implode('/', array_slice(explode('/', $_SERVER['SCRIPT_FILENAME'] ?? __FILE__), 0, -6)) . '/config.php');
 // phpcs:enable moodle.Files.MoodleInternal.MoodleInternalGlobalState
 
 $bbbid = required_param('id', PARAM_INT);

@@ -2,6 +2,114 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.4.3] — 2026-09-07
+
+### Security
+
+- **Annotation bodies returned by the AJAX endpoints were not cleaned.**
+  `shaper::shape_row()` handed back the stored editor HTML with only the `@@PLUGINFILE@@` rewrite applied, and the overlay assigns that string to `innerHTML` — so script in a comment body executed in the reader's browser on the add-and-list path, even though the server-rendered path had always run `format_text()`. The shaper now applies the same `format_text()` with cleaning enabled (`'noclean' => false`),
+  which also fixes a cosmetic mismatch: a just-posted comment now renders exactly as it does after a reload.
+- **Comment-library snippets are cleaned on the way in and on the way out.**
+  A course-scoped snippet is read by graders other than its author, so `comment_library::save()` now runs `clean_text()` before storing, and `comment_library::fetch()` cleans on read as well so rows written before this release cannot carry script into another grader's editor.
+- **`recordingid` is validated as `PARAM_ALPHANUMEXT` everywhere.** A BBB `recordID` is `<internal-meeting-sha1>-<epoch-millis>`, so the constrained type accepts every legitimate id.
+- **`bbbext_advgrd_probe_recording` declares `mediaurl` as `PARAM_URL`.** The client assigns it straight to `<video>.src`, so the returned type is now one that rejects a `javascript:` payload.
+- The `PARAM_RAW` declarations that remain are the editor-HTML fields, which no narrower type could carry. Each now documents where its cleaning happens.
+
+### Fixed
+
+- **The grading-area picker showed the literal `[[gradeitem:participation]]`.**
+  Once `classes/grades/gradeitems.php` declared the area through
+  `component_gradeitems`, core stopped calling the legacy
+  `bbbext_advgrd_grading_areas_list()` callback and started labelling the area
+  with `get_string('gradeitem:participation')` instead — a string the lang file
+  never defined. Added, along with `grade_participation_name`, which
+  `course/moodleform_mod.php` and the completion form use to name the grade item.
+  New `gradeitems_test.php` derives both key names from the mappings themselves,
+  so adding or renaming an item now fails the build rather than the UI.
+  Resolves #6.
+- Author lookups for annotation bylines selected only `firstname`/`lastname` and
+  passed that partial record to `fullname()`, which emitted a `debugging()`
+  warning on every call under developer debugging. Both call sites now select the
+  full name-field set via `\core_user\fields::get_name_fields()`.
+- **`media_proxy` could have fatalled with "Class \"curl\" not found".** The curl wrapper
+  lives in `lib/filelib.php`, which `lib/setup.php` loads only under some configurations, so
+  an autoloaded class cannot assume the requesting page pulled it in — and `pages/play.php`
+  bootstraps Moodle with a bare `require` of `config.php`. `make_curl()` now requires filelib
+  itself before constructing the client.
+- **The two correlated backfills in `db/upgrade.php` aliased the table they were
+  updating** (`UPDATE {table} m SET ... WHERE ... m.configid`). SQL Server rejects
+  that form — it spells the same statement `UPDATE <alias> ... FROM` — so the
+  0.3.x → 0.4.x upgrade step would have failed there. Both statements now name the
+  updated table in full instead of aliasing it.
+
+### Changed
+
+- **No plugin code is left in PHP's global namespace.** `pages/play.php` declared six
+  `advgrd_play_*` functions and an `ADVGRD_COOKIE_TTL` constant at global scope. The
+  `advgrd_` prefix is not frankenstyle — the component is `bbbext_advgrd` — so any other
+  plugin (or core) defining a function of the same name would have caused a fatal
+  redeclaration. Rather than only re-prefixing them, the whole media-proxy implementation
+  moved into the new `bbbext_advgrd\local\media_proxy` class, which puts it behind the
+  component's own namespace where a collision is impossible, and leaves `pages/play.php` as
+  a bare entry point. Behaviour is unchanged: the same handshake, the same per-user cookie
+  jar, the same byte-range forwarding. Resolves #2.
+- The `$advgrdpathparts` scratch variable each page used to locate `config.php` is gone;
+  the path is now computed inline with `array_slice()`. It existed for three lines but lived
+  in the global scope `config.php` is about to populate, which is the same collision risk in
+  a smaller form.
+- Two guards that `pages/play.php` had inline — the "is there a usable probe row" check and
+  the same-host/scheme pin that stops the endpoint becoming an open proxy — are now
+  `media_proxy::probe_is_proxyable()`, and the cookie-jar age check is
+  `media_proxy::jar_is_stale()`. Both are covered by the new `media_proxy_test.php`, so the
+  open-proxy pin is asserted rather than merely commented.
+- **The media proxy goes through Moodle's `\curl` wrapper instead of calling `curl_init()`
+  directly.** Both legs — the `/capture/` cookie handshake and the byte-range media stream —
+  were driving the cURL extension by hand, so a site's `$CFG->proxyhost` settings and its
+  `curlsecurityblockedhosts` / `curlsecurityallowedport` blocklist did not apply to them, unlike
+  every other outbound request Moodle makes (the recording probe already used the wrapper). Both
+  now build their client through `media_proxy::make_curl()`. Most of the old hand-rolled option
+  set is simply gone: the wrapper already pins the request *and every redirect hop* to
+  HTTP/HTTPS, sends the moodlebot user agent, supplies the CA bundle, and re-checks each
+  redirect target against the blocklist rather than letting cURL follow the chain on its own.
+  Resolves #4.
+
+  Two behaviours came along with the move. The client's `Range` header is now validated against
+  a byte-range grammar before being forwarded upstream, where previously `$_SERVER['HTTP_RANGE']`
+  was passed through verbatim. And because the wrapper owns `CURLOPT_HEADERFUNCTION`, the
+  streamer reads each hop's status and headers from the wrapper's response state; that parsing
+  is covered by new cases in `media_proxy_test.php`, alongside the `Range` grammar.
+
+- `classes/privacy/provider.php` anonymises rater references with
+  `$DB->set_field_select()` instead of two hand-written `UPDATE` statements. The
+  `execute()` calls that remain in `db/upgrade.php` are correlated backfills with no
+  specialised DML equivalent, and now carry a comment saying so. New
+  `privacy_provider_test.php` pins the behaviour the rewritten statements have to keep:
+  a listed user's own rows go, rows they merely rated stay with the rater reference
+  cleared, and users outside the list are untouched. Resolves #5.
+- **The privacy provider now documents what the plugin sends to BigBlueButton, which is
+  nothing personal.** The plugin makes outbound HTTP requests to the BBB server, and the
+  privacy API requires that either the user data sent there is declared with
+  `add_external_location_link()` or the decision not to declare it is recorded. Every
+  request — `probe_recording::execute()` scraping the playback page, and
+  `media_proxy::handshake()`/`::stream()` fetching the media — is server-to-server and
+  carries no Moodle user identifier: no user id, no name, no email, and not the viewer's IP
+  address. All three go through Moodle's `\curl` wrapper, which builds each request from its
+  own defaults rather than from the viewer's inbound one, so no client cookie, referer, or
+  address is inherited; the only value that crosses is the `Range` header, forwarded so
+  seeking works and already constrained to a byte-range pattern by `client_range()`.
+  `get_metadata()` now sets all of this out, along with
+  the one path that does put a browser in touch with BBB — the iframe fallback, whose target
+  is a `bbb_view.php` URL belonging to `mod_bigbluebuttonbn` and already covered by that
+  plugin's own declaration. No `add_external_location_link()` is added, because declaring
+  fields the plugin does not transmit would misinform the site's privacy registry. Resolves #1.
+- `privacy_provider_test.php` pins that decision two ways: one test fails if an external
+  location is ever declared without the reasoning being revisited, and another asserts every
+  declared metadata field resolves to a real lang string, since a missing one renders as
+  `[[key]]` in the registry a DPO actually reads.
+- Worth noting for the same audit: proxying the media through `pages/play.php` narrowed what
+  reaches BBB. Before 0.4.2 the overlay pointed the browser's `<video>` straight at the BBB
+  host, disclosing every viewer's IP address to it.
+
 ## [0.4.2] — 2026-08-25
 
 ### Fixed
