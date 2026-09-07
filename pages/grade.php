@@ -40,7 +40,10 @@ use mod_bigbluebuttonbn\instance;
 
 $bbbid = required_param('id', PARAM_INT);
 $userid = required_param('userid', PARAM_INT);
-$recordingidparam = optional_param('recordingid', '', PARAM_RAW_TRIMMED);
+// A BBB recordID is <internal-meeting-sha1>-<epoch-millis>; PARAM_ALPHANUMEXT ([a-zA-Z0-9_-])
+// covers it. A value that cleans to something else simply won't match a recording, and the
+// overlay falls back to its default selection.
+$recordingidparam = optional_param('recordingid', '', PARAM_ALPHANUMEXT);
 
 $info = grader::bootstrap($bbbid);
 $bbb = $info['bbb'];

@@ -45,10 +45,15 @@ class add_annotation extends external_api {
     public static function execute_parameters(): external_function_parameters {
         return new external_function_parameters([
             'bbbid'        => new external_value(PARAM_INT, 'BBB instance id'),
-            'recordingid'  => new external_value(PARAM_RAW_TRIMMED, 'BBB recording id'),
+            // BBB recordID shape is <internal-meeting-sha1>-<epoch-millis>, all of it [a-zA-Z0-9_-].
+            'recordingid'  => new external_value(PARAM_ALPHANUMEXT, 'BBB recording id'),
             'targetuserid' => new external_value(PARAM_INT, 'Addressed student id'),
             'timestampms'  => new external_value(PARAM_INT, 'Position in the recording (ms)'),
-            'body'         => new external_value(PARAM_RAW, 'Editor HTML body'),
+            // PARAM_RAW is deliberate: this is TinyMCE/Atto output, and any narrower type would
+            // strip the markup (and the embedded <audio>/<video>) the annotation exists to
+            // carry. It is stored with its format and cleaned on output - format_text() with
+            // noclean in both shaper::shape_row() and overlay::render_comment_item().
+            'body'         => new external_value(PARAM_RAW, 'Editor HTML body; cleaned on output via format_text'),
             'bodyformat'   => new external_value(PARAM_INT, 'Moodle text format', VALUE_DEFAULT, FORMAT_HTML),
             'commenttype'  => new external_value(PARAM_ALPHA, 'One of: general, praise, correction, suggestion, question'),
             'draftitemid'  => new external_value(PARAM_INT, 'Editor draft itemid for attached files'),

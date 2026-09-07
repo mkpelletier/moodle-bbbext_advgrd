@@ -90,7 +90,9 @@ class get_library extends external_api {
         $entry = new external_single_structure([
             'id'           => new external_value(PARAM_INT, 'Library entry id'),
             'commenttype'  => new external_value(PARAM_ALPHA, 'Category key'),
-            'commenttext'  => new external_value(PARAM_RAW, 'Stored body HTML'),
+            // PARAM_RAW is deliberate: snippet markup. comment_library::fetch() runs clean_text()
+            // on every row before it gets here, so the value that leaves is cleaned HTML.
+            'commenttext'  => new external_value(PARAM_RAW, 'Stored body HTML, cleaned via clean_text'),
             'isowner'      => new external_value(PARAM_BOOL, 'True when the caller owns the entry'),
             'timemodified' => new external_value(PARAM_INT, 'Modification timestamp'),
         ]);

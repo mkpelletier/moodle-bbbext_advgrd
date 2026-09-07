@@ -2,6 +2,26 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
+## [0.4.3] – 2026-09-07
+
+### Security
+
+- **Annotation bodies returned by the AJAX endpoints were not cleaned.**
+  `shaper::shape_row()` handed back the stored editor HTML with only the `@@PLUGINFILE@@` rewrite applied, and the overlay assigns that string to `innerHTML` — so script in a comment body executed in the reader's browser on the add-and-list path, even though the server-rendered path had always run `format_text()`. The shaper now applies the same `format_text()` with `noclean`,
+  which also fixes a cosmetic mismatch: a just-posted comment now renders exactly as it does after a reload.
+- **Comment-library snippets are cleaned on the way in and on the way out.**
+  A course-scoped snippet is read by graders other than its author, so `comment_library::save()` now runs `clean_text()` before storing, and `comment_library::fetch()` cleans on read as well so rows written before this release cannot carry script into another grader's editor.
+- **`recordingid` is validated as `PARAM_ALPHANUMEXT` everywhere.** A BBB `recordID` is `<internal-meeting-sha1>-<epoch-millis>`, so the constrained type accepts every legitimate id.
+- **`bbbext_advgrd_probe_recording` declares `mediaurl` as `PARAM_URL`.** The client assigns it straight to `<video>.src`, so the returned type is now one that rejects a `javascript:` payload.
+- The `PARAM_RAW` declarations that remain are the editor-HTML fields, which no narrower type could carry. Each now documents where its cleaning happens.
+
+### Fixed
+
+- Author lookups for annotation bylines selected only `firstname`/`lastname` and
+  passed that partial record to `fullname()`, which emitted a `debugging()`
+  warning on every call under developer debugging. Both call sites now select the
+  full name-field set via `\core_user\fields::get_name_fields()`.
+
 ## [0.4.2] — 2026-08-25
 
 ### Fixed

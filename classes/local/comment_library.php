@@ -32,9 +32,9 @@ use moodle_exception;
  *   - course    (courseid > 0): visible to anyone with bbbext/advgrd:grade in that course.
  *
  * Mirrors assignsubmission_ytsubmission's comment-library shape so graders learn one
- * mental model. Bodies are stored as raw HTML; we don't run @@PLUGINFILE@@ rewrites
- * here because library entries don't carry file attachments - they're text snippets the
- * teacher reuses, not media payloads.
+ * mental model. Bodies are editor HTML run through clean_text() on the way in and on the
+ * way out; we don't run @@PLUGINFILE@@ rewrites here because library entries don't carry
+ * file attachments - they're text snippets the teacher reuses, not media payloads.
  */
 class comment_library {
     /**
@@ -59,7 +59,16 @@ class comment_library {
                 'sortorder ASC, id ASC'
             );
         }
-        return ['personal' => array_values($personal), 'shared' => array_values($shared)];
+        // Cleaning happens in save() on the way in, but rows written before that did not, and a
+        // course-scoped entry is read by graders other than its author. Clean on the way out too so
+        // a legacy row cannot carry script into another grader's editor.
+        $clean = function (array $rows): array {
+            foreach ($rows as $row) {
+                $row->commenttext = clean_text((string) $row->commenttext, FORMAT_HTML);
+            }
+            return array_values($rows);
+        };
+        return ['personal' => $clean($personal), 'shared' => $clean($shared)];
     }
 
     /**
@@ -81,6 +90,10 @@ class comment_library {
         if ($plain === '') {
             throw new moodle_exception('annotation_emptybody', 'bbbext_advgrd');
         }
+        // The endpoint takes the body as PARAM_RAW because it is editor HTML - a narrower param
+        // type would destroy the markup the snippet exists to carry. Clean it here instead, so
+        // the column never holds script a course-shared entry could hand to another grader.
+        $commenttext = clean_text($commenttext, FORMAT_HTML);
 
         $now = time();
         if ($existingid > 0) {

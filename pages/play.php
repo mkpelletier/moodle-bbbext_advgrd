@@ -49,7 +49,10 @@ use bbbext_advgrd\local\grader;
 const ADVGRD_COOKIE_TTL = 20 * MINSECS;
 
 $bbbid = required_param('id', PARAM_INT);
-$recordingid = required_param('recordingid', PARAM_RAW_TRIMMED);
+// A BBB recordID is <internal-meeting-sha1>-<epoch-millis>, so PARAM_ALPHANUMEXT ([a-zA-Z0-9_-])
+// covers every legitimate value. Anything else is not a recording we could match anyway, and
+// cleaning it here keeps the string out of the cookie-jar filename and the probe lookup below.
+$recordingid = required_param('recordingid', PARAM_ALPHANUMEXT);
 
 $info = grader::bootstrap($bbbid);
 $bbb = $info['bbb'];

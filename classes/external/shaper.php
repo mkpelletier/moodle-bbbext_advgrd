@@ -38,14 +38,23 @@ class shaper {
     /**
      * Render a stored row for the JS client.
      *
+     * The body is put through format_text() with noclean, exactly as
+     * {@see \bbbext_advgrd\local\overlay::render_comment_item()} does server-side. The overlay
+     * assigns this string to innerHTML, so returning the stored HTML untouched would make any
+     * script a body carried executable in the viewer's browser - and it would render a
+     * just-posted comment differently from the same comment after a page reload.
+     *
      * @param \stdClass      $row
      * @param context_module $context
      * @return array
      */
     public static function shape_row(\stdClass $row, context_module $context): array {
         global $DB;
+        // A partial select breaks fullname(), which wants the whole name-field set (phonetics, middle, alternate); selecting
+        // just firstname/lastname makes it emit a debugging() warning on every call.
+        $namefields = implode(',', \core_user\fields::get_name_fields());
         $author = $row->graderid
-            ? $DB->get_record('user', ['id' => $row->graderid], 'id, firstname, lastname')
+            ? $DB->get_record('user', ['id' => $row->graderid], 'id,' . $namefields)
             : null;
 
         $renderedbody = file_rewrite_pluginfile_urls(
@@ -56,6 +65,10 @@ class shaper {
             annotations::FILEAREA,
             $row->id
         );
+        $renderedbody = format_text($renderedbody, (int) $row->bodyformat, [
+            'context' => $context,
+            'noclean' => false,
+        ]);
 
         return [
             'id'           => (int) $row->id,
@@ -80,7 +93,10 @@ class shaper {
             'id'           => new external_value(PARAM_INT, 'Annotation id'),
             'timestampms'  => new external_value(PARAM_INT, 'Anchor position in ms'),
             'commenttype'  => new external_value(PARAM_ALPHA, 'Category key'),
-            'body'         => new external_value(PARAM_RAW, 'Rendered HTML body (pluginfile URLs resolved)'),
+            // PARAM_RAW is required here and only here: the value is markup by design. It is
+            // safe because shape_row() has already run it through format_text() with noclean,
+            // so what leaves this endpoint is cleaned HTML, not grader-supplied HTML.
+            'body'         => new external_value(PARAM_RAW, 'Cleaned HTML body (format_text applied, pluginfile URLs resolved)'),
             'bodyformat'   => new external_value(PARAM_INT, 'Text format'),
             'graderid'     => new external_value(PARAM_INT, 'Author id (0 if anonymised)'),
             'gradername'   => new external_value(PARAM_TEXT, 'Author full name'),

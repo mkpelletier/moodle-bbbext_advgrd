@@ -354,8 +354,11 @@ class overlay {
      */
     public static function render_comment_item(\stdClass $row, context_module $context, bool $isgrader = true): string {
         global $DB;
+        // A partial select breaks fullname(), which wants the whole name-field set (phonetics, middle, alternate); selecting
+        // just firstname/lastname makes it emit a debugging() warning on every call.
+        $namefields = implode(',', \core_user\fields::get_name_fields());
         $author = $row->graderid
-            ? $DB->get_record('user', ['id' => $row->graderid], 'id, firstname, lastname')
+            ? $DB->get_record('user', ['id' => $row->graderid], 'id,' . $namefields)
             : null;
         $rendered = file_rewrite_pluginfile_urls(
             $row->body,
