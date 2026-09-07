@@ -81,6 +81,29 @@ All notable changes to `bbbext_advgrd` are documented here.
   `privacy_provider_test.php` pins the behaviour the rewritten statements have to keep:
   a listed user's own rows go, rows they merely rated stay with the rater reference
   cleared, and users outside the list are untouched. Resolves #5.
+- **The privacy provider now documents what the plugin sends to BigBlueButton, which is
+  nothing personal.** The plugin makes outbound HTTP requests to the BBB server, and the
+  privacy API requires that either the user data sent there is declared with
+  `add_external_location_link()` or the decision not to declare it is recorded. Every
+  request — `probe_recording::execute()` scraping the playback page, and
+  `media_proxy::handshake()`/`::stream()` fetching the media — is server-to-server and
+  carries no Moodle user identifier: no user id, no name, no email, and not the viewer's IP
+  address. All three go through Moodle's `\curl` wrapper, which builds each request from its
+  own defaults rather than from the viewer's inbound one, so no client cookie, referer, or
+  address is inherited; the only value that crosses is the `Range` header, forwarded so
+  seeking works and already constrained to a byte-range pattern by `client_range()`.
+  `get_metadata()` now sets all of this out, along with
+  the one path that does put a browser in touch with BBB — the iframe fallback, whose target
+  is a `bbb_view.php` URL belonging to `mod_bigbluebuttonbn` and already covered by that
+  plugin's own declaration. No `add_external_location_link()` is added, because declaring
+  fields the plugin does not transmit would misinform the site's privacy registry. Resolves #1.
+- `privacy_provider_test.php` pins that decision two ways: one test fails if an external
+  location is ever declared without the reasoning being revisited, and another asserts every
+  declared metadata field resolves to a real lang string, since a missing one renders as
+  `[[key]]` in the registry a DPO actually reads.
+- Worth noting for the same audit: proxying the media through `pages/play.php` narrowed what
+  reaches BBB. Before 0.4.2 the overlay pointed the browser's `<video>` straight at the BBB
+  host, disclosing every viewer's IP address to it.
 
 ## [0.4.2] — 2026-08-25
 

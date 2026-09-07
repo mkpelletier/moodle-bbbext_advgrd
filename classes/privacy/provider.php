@@ -45,6 +45,10 @@ use core_privacy\local\request\writer;
  *   - bbbext_advgrd_comlib       — reusable comment-library entries authored by graders (PII).
  *
  * Plus the bbbext_advgrd/comment filearea (audio/image attached to annotation bodies).
+ *
+ * The plugin makes outbound HTTP requests to the site's BigBlueButton server but transmits
+ * no personal data to it, so no add_external_location_link() is declared. get_metadata()
+ * documents each call site and the reasoning in full.
  */
 class provider implements
     \core_privacy\local\metadata\provider,
@@ -52,6 +56,50 @@ class provider implements
     \core_privacy\local\request\plugin\provider {
     /**
      * Describe the per-user data this plugin stores.
+     *
+     * On the deliberate absence of add_external_location_link(): this plugin issues outbound
+     * HTTP requests to the site's BigBlueButton server, and the privacy API requires that
+     * either the user data sent there is declared, or the decision not to declare is recorded.
+     * It is recorded here. Every outbound request is server-to-server and carries no Moodle
+     * user identifier - no user id, no name, no email, and not the viewer's IP address:
+     *
+     *   - external\probe_recording::execute() GETs the recording's BBB playback page to
+     *     scrape a media URL out of the HTML. The URL is one BBB itself supplied in its
+     *     getRecordings metadata, so it carries only BBB's own recording and meeting
+     *     identifiers.
+     *
+     *   - local\media_proxy::handshake() and ::stream() repeat that request and then fetch
+     *     the media file, replaying the authorisation cookie BBB issued into a server-side
+     *     jar.
+     *
+     * All three go through Moodle's \curl wrapper, which builds each request from its own
+     * defaults rather than from the viewer's inbound one, so nothing is inherited from the
+     * request that triggered it - no client cookie, no referer, no address. The only header
+     * that identifies anything is the wrapper's default MoodleBot user agent, and it names
+     * the site rather than a person. The single value that does cross from the viewer is the
+     * Range header, forwarded so that seeking works and admitted by media_proxy::client_range()
+     * only when it matches a byte-range pattern, which leaves no room for it to carry anything
+     * about the person who sent it.
+     *
+     * The proxy in fact reduces what reaches BBB. Before 0.4.2 the overlay pointed the
+     * browser's <video> element straight at the BBB host, which disclosed each viewer's IP
+     * address to it; the media now arrives from Moodle's own origin instead.
+     *
+     * One path does put the viewer's browser in touch with BBB: when no media URL can be
+     * probed, the overlay falls back to an iframe. That iframe's src is a Moodle
+     * /mod/bigbluebuttonbn/bbb_view.php URL - mod_bigbluebuttonbn builds it in
+     * recording::get_playbacks() - which redirects the browser onward to the BBB host. That
+     * transmission belongs to mod_bigbluebuttonbn, is identical to a user clicking the
+     * recording in the activity itself, and is already covered by that plugin's own
+     * add_external_location_link('bigbluebutton', ...) declaration for userid and fullname.
+     * This plugin adds nothing to it.
+     *
+     * Data flows the other way too, and that half is declared: the engagement metrics BBB
+     * reports are frozen into bbbext_advgrd_grade.evidence at the moment of grading.
+     *
+     * Anything that starts sending user data to BBB must add the declaration here. The
+     * assertion in privacy_provider_test::test_no_external_location_is_declared() is what
+     * makes that a conscious act rather than an oversight.
      *
      * @param collection $collection
      * @return collection

@@ -58,9 +58,30 @@ participation-assessment research rather than ad-hoc criteria.
 
 The plugin stores per-user grades and a JSON snapshot of the BigBlueButton
 engagement metrics that were active at the moment of grading
-(`bbbext_advgrd_grade`). The privacy provider exports these on data-subject
-requests and supports deletion in line with the GDPR. See
+(`bbbext_advgrd_grade`), timestamped feedback comments and their audio/image
+attachments (`bbbext_advgrd_annotation`), and reusable comment-library entries
+(`bbbext_advgrd_comlib`). The privacy provider exports all of these on
+data-subject requests and supports deletion in line with the GDPR. See
 [`classes/privacy/provider.php`](classes/privacy/provider.php).
+
+**No personal data is sent to the BigBlueButton server.** The plugin does make
+outbound requests to it — to find a recording's media URL, and to proxy the
+media itself — but each one is server-to-server and carries no Moodle user
+identifier, not even the viewer's IP address. They go through Moodle's `\curl`
+wrapper, which builds each request from its own defaults rather than from the
+viewer's inbound one, so no client cookie, referer, or address is inherited.
+That is why the provider declares
+no `add_external_location_link()`; `get_metadata()` documents each call site and
+the reasoning, and `privacy_provider_test.php` asserts the decision so that a
+future change which does send user data has to declare it. Proxying the media
+through Moodle actually narrows the exposure: before 0.4.2 the player pointed
+the browser straight at the BBB host, which disclosed every viewer's IP address
+to it.
+
+The one path that still puts a viewer's browser in touch with BBB is the iframe
+fallback used when no media URL can be probed. Its target is a Moodle
+`bbb_view.php` URL that redirects onward, which is `mod_bigbluebuttonbn`'s own
+gateway and is already covered by that plugin's external-location declaration.
 
 ## License
 

@@ -28,6 +28,8 @@ namespace bbbext_advgrd;
 use advanced_testcase;
 use bbbext_advgrd\privacy\provider;
 use context_module;
+use core_privacy\local\metadata\collection;
+use core_privacy\local\metadata\types\external_location;
 use core_privacy\local\request\approved_userlist;
 
 /**
@@ -137,5 +139,52 @@ final class privacy_provider_test extends advanced_testcase {
             'timecreated' => $now,
             'timemodified' => $now,
         ]);
+    }
+
+    /**
+     * The plugin talks to BigBlueButton but sends it no personal data, so get_metadata()
+     * declares no external location and says why. This pins that decision: adding an
+     * outbound flow of user data has to add the declaration here too, and a declaration
+     * appearing without one is a signal to re-read the reasoning rather than a silent
+     * change to what the site tells its data subjects.
+     */
+    public function test_no_external_location_is_declared(): void {
+        $items = provider::get_metadata(new collection('bbbext_advgrd'))->get_collection();
+
+        $external = array_filter($items, function ($item): bool {
+            return $item instanceof external_location;
+        });
+
+        $this->assertSame(
+            [],
+            array_map(function (external_location $item): string {
+                return $item->get_name();
+            }, $external),
+            'get_metadata() declares an external location. Every request this plugin makes to '
+                . 'BigBlueButton is server-to-server and carries no Moodle user identifier, which '
+                . 'is why none was declared - see the reasoning in get_metadata(). If user data '
+                . 'now does leave the site, update that block and this test together.'
+        );
+    }
+
+    /**
+     * Every metadata item resolves to a real lang string. A declared field whose string is
+     * missing renders as [[key]] in the site's privacy registry, which is exactly the
+     * document a DPO reads.
+     */
+    public function test_metadata_strings_all_exist(): void {
+        $items = provider::get_metadata(new collection('bbbext_advgrd'))->get_collection();
+        $this->assertNotEmpty($items);
+
+        foreach ($items as $item) {
+            $keys = array_values((array) $item->get_privacy_fields());
+            $keys[] = $item->get_summary();
+            foreach ($keys as $key) {
+                $this->assertTrue(
+                    get_string_manager()->string_exists($key, 'bbbext_advgrd'),
+                    "Missing lang string '{$key}' for privacy metadata item '{$item->get_name()}'."
+                );
+            }
+        }
     }
 }
