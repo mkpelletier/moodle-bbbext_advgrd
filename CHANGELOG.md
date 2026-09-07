@@ -2,7 +2,7 @@
 
 All notable changes to `bbbext_advgrd` are documented here.
 
-## [0.4.3] – 2026-09-07
+## [0.4.3] — 2026-09-07
 
 ### Security
 
@@ -17,10 +17,25 @@ All notable changes to `bbbext_advgrd` are documented here.
 
 ### Fixed
 
+- **The grading-area picker showed the literal `[[gradeitem:participation]]`.**
+  Once `classes/grades/gradeitems.php` declared the area through
+  `component_gradeitems`, core stopped calling the legacy
+  `bbbext_advgrd_grading_areas_list()` callback and started labelling the area
+  with `get_string('gradeitem:participation')` instead — a string the lang file
+  never defined. Added, along with `grade_participation_name`, which
+  `course/moodleform_mod.php` and the completion form use to name the grade item.
+  New `gradeitems_test.php` derives both key names from the mappings themselves,
+  so adding or renaming an item now fails the build rather than the UI.
+  Resolves #6.
 - Author lookups for annotation bylines selected only `firstname`/`lastname` and
   passed that partial record to `fullname()`, which emitted a `debugging()`
   warning on every call under developer debugging. Both call sites now select the
   full name-field set via `\core_user\fields::get_name_fields()`.
+- **The two correlated backfills in `db/upgrade.php` aliased the table they were
+  updating** (`UPDATE {table} m SET ... WHERE ... m.configid`). SQL Server rejects
+  that form — it spells the same statement `UPDATE <alias> ... FROM` — so the
+  0.3.x → 0.4.x upgrade step would have failed there. Both statements now name the
+  updated table in full instead of aliasing it.
 
 ### Changed
 
@@ -42,6 +57,13 @@ All notable changes to `bbbext_advgrd` are documented here.
   `media_proxy::probe_is_proxyable()`, and the cookie-jar age check is
   `media_proxy::jar_is_stale()`. Both are covered by the new `media_proxy_test.php`, so the
   open-proxy pin is asserted rather than merely commented.
+- `classes/privacy/provider.php` anonymises rater references with
+  `$DB->set_field_select()` instead of two hand-written `UPDATE` statements. The
+  `execute()` calls that remain in `db/upgrade.php` are correlated backfills with no
+  specialised DML equivalent, and now carry a comment saying so. New
+  `privacy_provider_test.php` pins the behaviour the rewritten statements have to keep:
+  a listed user's own rows go, rows they merely rated stay with the rater reference
+  cleared, and users outside the list are untouched. Resolves #5.
 
 ## [0.4.2] — 2026-08-25
 

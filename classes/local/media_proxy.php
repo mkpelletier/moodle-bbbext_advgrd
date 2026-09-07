@@ -39,7 +39,7 @@ namespace bbbext_advgrd\local;
  */
 class media_proxy {
     /** @var int How long a cached BBB authorisation cookie jar is trusted before re-handshaking. */
-    const COOKIE_TTL = 20 * MINSECS;
+    public const COOKIE_TTL = 20 * MINSECS;
 
     /**
      * Path of this user's cookie jar for one recording.

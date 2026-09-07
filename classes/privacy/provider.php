@@ -532,10 +532,11 @@ class provider implements
         $DB->delete_records_select('bbbext_advgrd_grade', "configid = :configid AND userid {$insql}", $params);
 
         // Anonymise rater references for the same user list.
-        $DB->execute(
-            "UPDATE {bbbext_advgrd_grade}
-                SET graderid = NULL
-              WHERE configid = :configid AND graderid {$insql}",
+        $DB->set_field_select(
+            'bbbext_advgrd_grade',
+            'graderid',
+            null,
+            "configid = :configid AND graderid {$insql}",
             $params
         );
 
@@ -560,10 +561,11 @@ class provider implements
             }
             $DB->delete_records_list('bbbext_advgrd_annotation', 'id', $targetannids);
         }
-        $DB->execute(
-            "UPDATE {bbbext_advgrd_annotation}
-                SET graderid = NULL
-              WHERE bigbluebuttonbnid = :bbbid AND graderid {$insql}",
+        $DB->set_field_select(
+            'bbbext_advgrd_annotation',
+            'graderid',
+            null,
+            "bigbluebuttonbnid = :bbbid AND graderid {$insql}",
             $annparams
         );
     }
