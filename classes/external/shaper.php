@@ -38,8 +38,9 @@ class shaper {
     /**
      * Render a stored row for the JS client.
      *
-     * The body is put through format_text() with noclean, exactly as
-     * {@see \bbbext_advgrd\local\overlay::render_comment_item()} does server-side. The overlay
+     * The body is put through format_text() with 'noclean' => false - that is, with cleaning
+     * enabled - exactly as {@see \bbbext_advgrd\local\overlay::render_comment_item()} does
+     * server-side. The overlay
      * assigns this string to innerHTML, so returning the stored HTML untouched would make any
      * script a body carried executable in the viewer's browser - and it would render a
      * just-posted comment differently from the same comment after a page reload.
@@ -94,8 +95,9 @@ class shaper {
             'timestampms'  => new external_value(PARAM_INT, 'Anchor position in ms'),
             'commenttype'  => new external_value(PARAM_ALPHA, 'Category key'),
             // PARAM_RAW is required here and only here: the value is markup by design. It is
-            // safe because shape_row() has already run it through format_text() with noclean,
-            // so what leaves this endpoint is cleaned HTML, not grader-supplied HTML.
+            // safe because shape_row() has already run it through format_text() with cleaning
+            // enabled ('noclean' => false), so what leaves this endpoint is cleaned HTML rather
+            // than the grader-supplied HTML as stored.
             'body'         => new external_value(PARAM_RAW, 'Cleaned HTML body (format_text applied, pluginfile URLs resolved)'),
             'bodyformat'   => new external_value(PARAM_INT, 'Text format'),
             'graderid'     => new external_value(PARAM_INT, 'Author id (0 if anonymised)'),

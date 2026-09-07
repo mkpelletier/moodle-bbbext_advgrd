@@ -7,7 +7,7 @@ All notable changes to `bbbext_advgrd` are documented here.
 ### Security
 
 - **Annotation bodies returned by the AJAX endpoints were not cleaned.**
-  `shaper::shape_row()` handed back the stored editor HTML with only the `@@PLUGINFILE@@` rewrite applied, and the overlay assigns that string to `innerHTML` — so script in a comment body executed in the reader's browser on the add-and-list path, even though the server-rendered path had always run `format_text()`. The shaper now applies the same `format_text()` with `noclean`,
+  `shaper::shape_row()` handed back the stored editor HTML with only the `@@PLUGINFILE@@` rewrite applied, and the overlay assigns that string to `innerHTML` — so script in a comment body executed in the reader's browser on the add-and-list path, even though the server-rendered path had always run `format_text()`. The shaper now applies the same `format_text()` with cleaning enabled (`'noclean' => false`),
   which also fixes a cosmetic mismatch: a just-posted comment now renders exactly as it does after a reload.
 - **Comment-library snippets are cleaned on the way in and on the way out.**
   A course-scoped snippet is read by graders other than its author, so `comment_library::save()` now runs `clean_text()` before storing, and `comment_library::fetch()` cleans on read as well so rows written before this release cannot carry script into another grader's editor.

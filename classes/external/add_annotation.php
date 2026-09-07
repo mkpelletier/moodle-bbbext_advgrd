@@ -52,7 +52,8 @@ class add_annotation extends external_api {
             // PARAM_RAW is deliberate: this is TinyMCE/Atto output, and any narrower type would
             // strip the markup (and the embedded <audio>/<video>) the annotation exists to
             // carry. It is stored with its format and cleaned on output - format_text() with
-            // noclean in both shaper::shape_row() and overlay::render_comment_item().
+            // cleaning enabled ('noclean' => false) in both shaper::shape_row() and
+            // overlay::render_comment_item().
             'body'         => new external_value(PARAM_RAW, 'Editor HTML body; cleaned on output via format_text'),
             'bodyformat'   => new external_value(PARAM_INT, 'Moodle text format', VALUE_DEFAULT, FORMAT_HTML),
             'commenttype'  => new external_value(PARAM_ALPHA, 'One of: general, praise, correction, suggestion, question'),
